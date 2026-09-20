@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.data.local.ExerciseRelationalTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-09-20T18:07:55" hostname="GAasishs-MacBook-Pro.local" time="2.059">
+  <properties/>
+  <testcase name="customExercise_coexistsWithCanonicalData_andIsSearchable" classname="com.forge.data.local.ExerciseRelationalTest" time="0.338"/>
+  <testcase name="relationalSeeding_andQueries_workAccurately" classname="com.forge.data.local.ExerciseRelationalTest" time="0.251"/>
+  <testcase name="databaseSeedLoader_loadsFullSeedAssetSuccessfully" classname="com.forge.data.local.ExerciseRelationalTest" time="1.468"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

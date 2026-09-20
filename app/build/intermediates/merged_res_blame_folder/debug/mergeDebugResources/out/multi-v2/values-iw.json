@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.forge.app-mergeDebugResources-55:/values-iw/values-iw.xml",
+            "outputFile": "com.forge.app-mergeDebugResources-56:/values-iw/values-iw.xml",
             "map": [
                 {
                     "source": "/Users/g.aasish/.gradle/caches/transforms-4/d5bb0c7e27c6c04f471b7154985dcbfe/transformed/core-1.13.1/res/values-iw/values-iw.xml",

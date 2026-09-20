@@ -12,7 +12,14 @@ import com.forge.data.repository.ExerciseRepositoryImpl
 import com.forge.data.repository.WorkoutRepositoryImpl
 import com.forge.presentation.exercise.ExerciseDetailViewModel
 import com.forge.presentation.exercise.ExerciseLibraryViewModel
+import com.forge.presentation.home.HomeViewModel
+import com.forge.presentation.journey.JourneyViewModel
+import com.forge.presentation.nutrition.NutritionViewModel
+import com.forge.presentation.onboarding.InitializationViewModel
+import com.forge.presentation.profile.ProfileViewModel
+import com.forge.presentation.progress.ProgressViewModel
 import com.forge.presentation.workout.ActiveWorkoutViewModel
+import com.forge.presentation.workout.WorkoutsViewModel
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -45,6 +52,13 @@ class NavigationFlowTest {
     private lateinit var activeWorkoutViewModel: ActiveWorkoutViewModel
     private lateinit var exerciseLibraryViewModel: ExerciseLibraryViewModel
     private lateinit var exerciseDetailViewModel: ExerciseDetailViewModel
+    private lateinit var homeViewModel: HomeViewModel
+    private lateinit var workoutsViewModel: WorkoutsViewModel
+    private lateinit var progressViewModel: ProgressViewModel
+    private lateinit var journeyViewModel: JourneyViewModel
+    private lateinit var profileViewModel: ProfileViewModel
+    private lateinit var nutritionViewModel: NutritionViewModel
+    private lateinit var initializationViewModel: InitializationViewModel
     private lateinit var navController: TestNavHostController
 
     @Before
@@ -63,6 +77,24 @@ class NavigationFlowTest {
         exerciseLibraryViewModel = ExerciseLibraryViewModel(exerciseRepository)
         exerciseDetailViewModel = ExerciseDetailViewModel(exerciseRepository)
 
+        val userProfileDao = database.userProfileDao()
+        val trainingScheduleDao = database.trainingScheduleDao()
+        val workoutTemplateDao = database.workoutTemplateDao()
+        val dailyActivityDao = database.dailyActivityDao()
+        val transformationDao = database.transformationDao()
+        val appSettingsDao = database.appSettingsDao()
+        val workoutDao = database.workoutDao()
+        val exerciseDao = database.exerciseDao()
+
+        homeViewModel = HomeViewModel(userProfileDao, trainingScheduleDao, workoutDao, dailyActivityDao, null)
+        workoutsViewModel = WorkoutsViewModel(trainingScheduleDao, workoutTemplateDao, workoutDao, exerciseRepository)
+        progressViewModel = ProgressViewModel(workoutRepository, exerciseRepository)
+        val vaultManager = com.forge.domain.engine.TransformationVaultManager(context)
+        journeyViewModel = JourneyViewModel(transformationDao, userProfileDao, vaultManager)
+        profileViewModel = ProfileViewModel(userProfileDao, appSettingsDao, workoutDao, exerciseDao)
+        nutritionViewModel = NutritionViewModel(userProfileDao, dailyActivityDao, workoutDao)
+        initializationViewModel = InitializationViewModel(userProfileDao, trainingScheduleDao, workoutTemplateDao, vaultManager)
+
         navController = TestNavHostController(context)
         navController.navigatorProvider.addNavigator(ComposeNavigator())
     }
@@ -78,9 +110,17 @@ class NavigationFlowTest {
         composeTestRule.setContent {
             com.forge.core.designsystem.theme.ForgeTheme {
                 ForgeAppRoot(
+                    homeViewModel = homeViewModel,
+                    workoutsViewModel = workoutsViewModel,
                     activeWorkoutViewModel = activeWorkoutViewModel,
                     exerciseLibraryViewModel = exerciseLibraryViewModel,
                     exerciseDetailViewModel = exerciseDetailViewModel,
+                    progressViewModel = progressViewModel,
+                    journeyViewModel = journeyViewModel,
+                    profileViewModel = profileViewModel,
+                    nutritionViewModel = nutritionViewModel,
+                    initializationViewModel = initializationViewModel,
+                    isInitialized = true,
                     navController = navController,
                     hasActiveWorkout = hasActiveWorkout
                 )

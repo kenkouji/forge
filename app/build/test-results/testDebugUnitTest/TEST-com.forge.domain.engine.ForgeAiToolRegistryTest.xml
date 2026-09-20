@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.domain.engine.ForgeAiToolRegistryTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-09-20T18:07:57" hostname="GAasishs-MacBook-Pro.local" time="0.016">
+  <properties/>
+  <testcase name="moveWorkout_formatsDiffAccurately" classname="com.forge.domain.engine.ForgeAiToolRegistryTest" time="0.002"/>
+  <testcase name="removeExercise_formatsDiffAccurately" classname="com.forge.domain.engine.ForgeAiToolRegistryTest" time="0.001"/>
+  <testcase name="dayName_mapsDayIntsCorrectly" classname="com.forge.domain.engine.ForgeAiToolRegistryTest" time="0.0"/>
+  <testcase name="replaceExercise_formatsDiffAccurately" classname="com.forge.domain.engine.ForgeAiToolRegistryTest" time="0.001"/>
+  <testcase name="addExercise_formatsDiffAccurately" classname="com.forge.domain.engine.ForgeAiToolRegistryTest" time="0.003"/>
+  <testcase name="adjustCalories_formatsDiffAccurately" classname="com.forge.domain.engine.ForgeAiToolRegistryTest" time="0.005"/>
+  <testcase name="compositeAction_aggregatesChildDiffs" classname="com.forge.domain.engine.ForgeAiToolRegistryTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

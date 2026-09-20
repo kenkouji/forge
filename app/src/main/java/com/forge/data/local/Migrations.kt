@@ -320,8 +320,221 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // 1. user_profile
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS user_profile (
+                id INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                photo_uri TEXT,
+                goal TEXT NOT NULL,
+                experience TEXT NOT NULL,
+                days_per_week INTEGER NOT NULL,
+                session_duration_min INTEGER NOT NULL,
+                equipment TEXT NOT NULL,
+                height_cm REAL NOT NULL DEFAULT 175.0,
+                weight_kg REAL NOT NULL DEFAULT 75.0,
+                age INTEGER,
+                sex TEXT,
+                maintenance_calories INTEGER NOT NULL,
+                nutrition_goal TEXT NOT NULL,
+                target_calories INTEGER NOT NULL,
+                target_protein_g INTEGER NOT NULL,
+                target_carbs_g INTEGER NOT NULL,
+                target_fat_g INTEGER NOT NULL,
+                transformation_start_date INTEGER NOT NULL,
+                photo_password_hash TEXT,
+                photo_password_salt TEXT,
+                is_initialized INTEGER NOT NULL,
+                initialization_step INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 2. training_schedule
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS training_schedule (
+                day_of_week INTEGER PRIMARY KEY NOT NULL,
+                is_training_day INTEGER NOT NULL,
+                focus TEXT NOT NULL,
+                template_id TEXT,
+                target_duration_min INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 3. workout_templates
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS workout_templates (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                focus TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                target_muscles TEXT NOT NULL,
+                estimated_duration_min INTEGER NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 4. template_exercises
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS template_exercises (
+                id TEXT PRIMARY KEY NOT NULL,
+                template_id TEXT NOT NULL,
+                exercise_id TEXT NOT NULL,
+                order_index INTEGER NOT NULL,
+                target_sets INTEGER NOT NULL,
+                target_reps_min INTEGER NOT NULL,
+                target_reps_max INTEGER NOT NULL,
+                target_rir INTEGER NOT NULL,
+                target_weight_kg REAL,
+                rest_seconds INTEGER NOT NULL,
+                is_warmup INTEGER NOT NULL,
+                is_drop_set INTEGER NOT NULL,
+                notes TEXT,
+                FOREIGN KEY(template_id) REFERENCES workout_templates(id) ON DELETE CASCADE,
+                FOREIGN KEY(exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_template_exercises_template_id ON template_exercises (template_id)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_template_exercises_exercise_id ON template_exercises (exercise_id)")
+
+        // 5. daily_activity
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS daily_activity (
+                date TEXT PRIMARY KEY NOT NULL,
+                steps INTEGER NOT NULL,
+                active_calories INTEGER NOT NULL,
+                total_calories INTEGER NOT NULL,
+                distance_meters REAL NOT NULL,
+                is_calories_measured INTEGER NOT NULL,
+                has_health_connect_sync INTEGER NOT NULL,
+                last_sync_timestamp INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 6. transformation_checkins
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS transformation_checkins (
+                id TEXT PRIMARY KEY NOT NULL,
+                week_number INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                front_encrypted_path TEXT,
+                side_encrypted_path TEXT,
+                back_encrypted_path TEXT,
+                weight_kg REAL,
+                notes TEXT,
+                created_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // 7. app_settings
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS app_settings (
+                id INTEGER PRIMARY KEY NOT NULL,
+                reduce_motion INTEGER NOT NULL,
+                particles_enabled INTEGER NOT NULL,
+                haptics_enabled INTEGER NOT NULL,
+                health_connect_enabled INTEGER NOT NULL,
+                auto_lock_vault_on_background INTEGER NOT NULL,
+                notif_workout_reminders INTEGER NOT NULL,
+                notif_streak_reminders INTEGER NOT NULL,
+                notif_motivation INTEGER NOT NULL,
+                notif_pre_workout_alerts INTEGER NOT NULL,
+                notif_post_workout_congrats INTEGER NOT NULL,
+                notif_nutrition_reminders INTEGER NOT NULL,
+                notif_hydration_reminders INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+
+        // Insert default AppSettings row
+        db.execSQL(
+            """
+            INSERT OR IGNORE INTO app_settings (
+                id, reduce_motion, particles_enabled, haptics_enabled,
+                health_connect_enabled, auto_lock_vault_on_background,
+                notif_workout_reminders, notif_streak_reminders, notif_motivation,
+                notif_pre_workout_alerts, notif_post_workout_congrats,
+                notif_nutrition_reminders, notif_hydration_reminders, updated_at
+            ) VALUES (1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, ${System.currentTimeMillis()})
+            """.trimIndent()
+        )
+
+        // Upgrade protection: Check if user already has completed workouts
+        val cursor = db.query("SELECT COUNT(*) FROM workout_sessions WHERE status = 'COMPLETED'")
+        var hasExistingCompleted = false
+        if (cursor.moveToFirst()) {
+            hasExistingCompleted = cursor.getInt(0) > 0
+        }
+        cursor.close()
+
+        if (hasExistingCompleted) {
+            // Existing user: mark initialized so upgrade doesn't wipe or force onboarding
+            db.execSQL(
+                """
+                INSERT OR IGNORE INTO user_profile (
+                    id, name, photo_uri, goal, experience, days_per_week, session_duration_min,
+                    equipment, height_cm, weight_kg, age, sex, maintenance_calories, nutrition_goal, target_calories,
+                    target_protein_g, target_carbs_g, target_fat_g, transformation_start_date,
+                    photo_password_hash, photo_password_salt, is_initialized, initialization_step, updated_at
+                ) VALUES (
+                    1, 'Athlete', NULL, 'Hypertrophy', 'Intermediate', 4, 60,
+                    'Gym,Barbells,Dumbbells,Cables', 175.0, 75.0, NULL, NULL, 2400, 'Maintain', 2400,
+                    160, 250, 70, ${System.currentTimeMillis()},
+                    NULL, NULL, 1, 12, ${System.currentTimeMillis()}
+                )
+                """.trimIndent()
+            )
+        }
+    }
+}
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val existingColumns = mutableSetOf<String>()
+        val cursor = db.query("PRAGMA table_info(user_profile)")
+        while (cursor.moveToNext()) {
+            val nameIdx = cursor.getColumnIndex("name")
+            if (nameIdx >= 0) existingColumns.add(cursor.getString(nameIdx))
+        }
+        cursor.close()
+
+        if (!existingColumns.contains("height_cm")) {
+            db.execSQL("ALTER TABLE user_profile ADD COLUMN height_cm REAL NOT NULL DEFAULT 175.0")
+        }
+        if (!existingColumns.contains("weight_kg")) {
+            db.execSQL("ALTER TABLE user_profile ADD COLUMN weight_kg REAL NOT NULL DEFAULT 75.0")
+        }
+        if (!existingColumns.contains("age")) {
+            db.execSQL("ALTER TABLE user_profile ADD COLUMN age INTEGER")
+        }
+        if (!existingColumns.contains("sex")) {
+            db.execSQL("ALTER TABLE user_profile ADD COLUMN sex TEXT")
+        }
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
-    MIGRATION_3_4
+    MIGRATION_3_4,
+    MIGRATION_4_5,
+    MIGRATION_5_6
 )
+

@@ -51,6 +51,10 @@ public final class WorkoutDao_Impl implements WorkoutDao {
 
   private final SharedSQLiteStatement __preparedStmtOfDiscardSession;
 
+  private final SharedSQLiteStatement __preparedStmtOfDeleteAllSessions;
+
+  private final SharedSQLiteStatement __preparedStmtOfDeleteAllSets;
+
   public WorkoutDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
     this.__insertionAdapterOfWorkoutSessionEntity = new EntityInsertionAdapter<WorkoutSessionEntity>(__db) {
@@ -210,6 +214,22 @@ public final class WorkoutDao_Impl implements WorkoutDao {
       @NonNull
       public String createQuery() {
         final String _query = "UPDATE workout_sessions SET status = 'DISCARDED', last_updated_at = ? WHERE id = ?";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfDeleteAllSessions = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "DELETE FROM workout_sessions";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfDeleteAllSets = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "DELETE FROM workout_sets";
         return _query;
       }
     };
@@ -392,6 +412,52 @@ public final class WorkoutDao_Impl implements WorkoutDao {
           }
         } finally {
           __preparedStmtOfDiscardSession.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object deleteAllSessions(final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfDeleteAllSessions.acquire();
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfDeleteAllSessions.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object deleteAllSets(final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfDeleteAllSets.acquire();
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfDeleteAllSets.release(_stmt);
         }
       }
     }, $completion);
@@ -720,6 +786,85 @@ public final class WorkoutDao_Impl implements WorkoutDao {
   }
 
   @Override
+  public Object getAllSessionsSync(
+      final Continuation<? super List<WorkoutSessionEntity>> $completion) {
+    final String _sql = "SELECT * FROM workout_sessions ORDER BY start_time DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<WorkoutSessionEntity>>() {
+      @Override
+      @NonNull
+      public List<WorkoutSessionEntity> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfRoutineId = CursorUtil.getColumnIndexOrThrow(_cursor, "routine_id");
+          final int _cursorIndexOfName = CursorUtil.getColumnIndexOrThrow(_cursor, "name");
+          final int _cursorIndexOfStartTime = CursorUtil.getColumnIndexOrThrow(_cursor, "start_time");
+          final int _cursorIndexOfEndTime = CursorUtil.getColumnIndexOrThrow(_cursor, "end_time");
+          final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
+          final int _cursorIndexOfActiveExerciseId = CursorUtil.getColumnIndexOrThrow(_cursor, "active_exercise_id");
+          final int _cursorIndexOfActiveSetIndex = CursorUtil.getColumnIndexOrThrow(_cursor, "active_set_index");
+          final int _cursorIndexOfTotalVolumeKg = CursorUtil.getColumnIndexOrThrow(_cursor, "total_volume_kg");
+          final int _cursorIndexOfDurationSeconds = CursorUtil.getColumnIndexOrThrow(_cursor, "duration_seconds");
+          final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
+          final int _cursorIndexOfLastUpdatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "last_updated_at");
+          final List<WorkoutSessionEntity> _result = new ArrayList<WorkoutSessionEntity>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final WorkoutSessionEntity _item;
+            final String _tmpId;
+            _tmpId = _cursor.getString(_cursorIndexOfId);
+            final String _tmpRoutineId;
+            if (_cursor.isNull(_cursorIndexOfRoutineId)) {
+              _tmpRoutineId = null;
+            } else {
+              _tmpRoutineId = _cursor.getString(_cursorIndexOfRoutineId);
+            }
+            final String _tmpName;
+            _tmpName = _cursor.getString(_cursorIndexOfName);
+            final long _tmpStartTime;
+            _tmpStartTime = _cursor.getLong(_cursorIndexOfStartTime);
+            final Long _tmpEndTime;
+            if (_cursor.isNull(_cursorIndexOfEndTime)) {
+              _tmpEndTime = null;
+            } else {
+              _tmpEndTime = _cursor.getLong(_cursorIndexOfEndTime);
+            }
+            final String _tmpStatus;
+            _tmpStatus = _cursor.getString(_cursorIndexOfStatus);
+            final String _tmpActiveExerciseId;
+            if (_cursor.isNull(_cursorIndexOfActiveExerciseId)) {
+              _tmpActiveExerciseId = null;
+            } else {
+              _tmpActiveExerciseId = _cursor.getString(_cursorIndexOfActiveExerciseId);
+            }
+            final int _tmpActiveSetIndex;
+            _tmpActiveSetIndex = _cursor.getInt(_cursorIndexOfActiveSetIndex);
+            final double _tmpTotalVolumeKg;
+            _tmpTotalVolumeKg = _cursor.getDouble(_cursorIndexOfTotalVolumeKg);
+            final long _tmpDurationSeconds;
+            _tmpDurationSeconds = _cursor.getLong(_cursorIndexOfDurationSeconds);
+            final String _tmpNotes;
+            if (_cursor.isNull(_cursorIndexOfNotes)) {
+              _tmpNotes = null;
+            } else {
+              _tmpNotes = _cursor.getString(_cursorIndexOfNotes);
+            }
+            final long _tmpLastUpdatedAt;
+            _tmpLastUpdatedAt = _cursor.getLong(_cursorIndexOfLastUpdatedAt);
+            _item = new WorkoutSessionEntity(_tmpId,_tmpRoutineId,_tmpName,_tmpStartTime,_tmpEndTime,_tmpStatus,_tmpActiveExerciseId,_tmpActiveSetIndex,_tmpTotalVolumeKg,_tmpDurationSeconds,_tmpNotes,_tmpLastUpdatedAt);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Flow<List<WorkoutSetEntity>> getSetsForSession(final String sessionId) {
     final String _sql = "SELECT * FROM workout_sets WHERE session_id = ? ORDER BY set_order ASC";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
@@ -823,6 +968,101 @@ public final class WorkoutDao_Impl implements WorkoutDao {
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
     int _argIndex = 1;
     _statement.bindString(_argIndex, sessionId);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<WorkoutSetEntity>>() {
+      @Override
+      @NonNull
+      public List<WorkoutSetEntity> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfSessionId = CursorUtil.getColumnIndexOrThrow(_cursor, "session_id");
+          final int _cursorIndexOfExerciseId = CursorUtil.getColumnIndexOrThrow(_cursor, "exercise_id");
+          final int _cursorIndexOfSetOrder = CursorUtil.getColumnIndexOrThrow(_cursor, "set_order");
+          final int _cursorIndexOfSetType = CursorUtil.getColumnIndexOrThrow(_cursor, "set_type");
+          final int _cursorIndexOfWeightKg = CursorUtil.getColumnIndexOrThrow(_cursor, "weight_kg");
+          final int _cursorIndexOfReps = CursorUtil.getColumnIndexOrThrow(_cursor, "reps");
+          final int _cursorIndexOfRpe = CursorUtil.getColumnIndexOrThrow(_cursor, "rpe");
+          final int _cursorIndexOfRir = CursorUtil.getColumnIndexOrThrow(_cursor, "rir");
+          final int _cursorIndexOfTempo = CursorUtil.getColumnIndexOrThrow(_cursor, "tempo");
+          final int _cursorIndexOfRestSecondsTaken = CursorUtil.getColumnIndexOrThrow(_cursor, "rest_seconds_taken");
+          final int _cursorIndexOfIsCompleted = CursorUtil.getColumnIndexOrThrow(_cursor, "is_completed");
+          final int _cursorIndexOfIsPersonalRecord = CursorUtil.getColumnIndexOrThrow(_cursor, "is_personal_record");
+          final int _cursorIndexOfCompletedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "completed_at");
+          final List<WorkoutSetEntity> _result = new ArrayList<WorkoutSetEntity>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final WorkoutSetEntity _item;
+            final String _tmpId;
+            _tmpId = _cursor.getString(_cursorIndexOfId);
+            final String _tmpSessionId;
+            _tmpSessionId = _cursor.getString(_cursorIndexOfSessionId);
+            final String _tmpExerciseId;
+            _tmpExerciseId = _cursor.getString(_cursorIndexOfExerciseId);
+            final int _tmpSetOrder;
+            _tmpSetOrder = _cursor.getInt(_cursorIndexOfSetOrder);
+            final String _tmpSetType;
+            _tmpSetType = _cursor.getString(_cursorIndexOfSetType);
+            final double _tmpWeightKg;
+            _tmpWeightKg = _cursor.getDouble(_cursorIndexOfWeightKg);
+            final int _tmpReps;
+            _tmpReps = _cursor.getInt(_cursorIndexOfReps);
+            final Double _tmpRpe;
+            if (_cursor.isNull(_cursorIndexOfRpe)) {
+              _tmpRpe = null;
+            } else {
+              _tmpRpe = _cursor.getDouble(_cursorIndexOfRpe);
+            }
+            final Integer _tmpRir;
+            if (_cursor.isNull(_cursorIndexOfRir)) {
+              _tmpRir = null;
+            } else {
+              _tmpRir = _cursor.getInt(_cursorIndexOfRir);
+            }
+            final String _tmpTempo;
+            if (_cursor.isNull(_cursorIndexOfTempo)) {
+              _tmpTempo = null;
+            } else {
+              _tmpTempo = _cursor.getString(_cursorIndexOfTempo);
+            }
+            final Integer _tmpRestSecondsTaken;
+            if (_cursor.isNull(_cursorIndexOfRestSecondsTaken)) {
+              _tmpRestSecondsTaken = null;
+            } else {
+              _tmpRestSecondsTaken = _cursor.getInt(_cursorIndexOfRestSecondsTaken);
+            }
+            final boolean _tmpIsCompleted;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsCompleted);
+            _tmpIsCompleted = _tmp != 0;
+            final boolean _tmpIsPersonalRecord;
+            final int _tmp_1;
+            _tmp_1 = _cursor.getInt(_cursorIndexOfIsPersonalRecord);
+            _tmpIsPersonalRecord = _tmp_1 != 0;
+            final Long _tmpCompletedAt;
+            if (_cursor.isNull(_cursorIndexOfCompletedAt)) {
+              _tmpCompletedAt = null;
+            } else {
+              _tmpCompletedAt = _cursor.getLong(_cursorIndexOfCompletedAt);
+            }
+            _item = new WorkoutSetEntity(_tmpId,_tmpSessionId,_tmpExerciseId,_tmpSetOrder,_tmpSetType,_tmpWeightKg,_tmpReps,_tmpRpe,_tmpRir,_tmpTempo,_tmpRestSecondsTaken,_tmpIsCompleted,_tmpIsPersonalRecord,_tmpCompletedAt);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object getCompletedSetsForExerciseSync(final String exerciseId,
+      final Continuation<? super List<WorkoutSetEntity>> $completion) {
+    final String _sql = "SELECT * FROM workout_sets WHERE exercise_id = ? ORDER BY id DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    _statement.bindString(_argIndex, exerciseId);
     final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
     return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<WorkoutSetEntity>>() {
       @Override

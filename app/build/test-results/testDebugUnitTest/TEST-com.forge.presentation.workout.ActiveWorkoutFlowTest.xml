@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.presentation.workout.ActiveWorkoutFlowTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-09-20T18:08:07" hostname="GAasishs-MacBook-Pro.local" time="0.423">
+  <properties/>
+  <testcase name="finishing_the_workout_changes_status_to_completed" classname="com.forge.presentation.workout.ActiveWorkoutFlowTest" time="0.124"/>
+  <testcase name="active_workout_survives_process_recreation_and_relaunch" classname="com.forge.presentation.workout.ActiveWorkoutFlowTest" time="0.098"/>
+  <testcase name="tapping_empty_workout_creates_active_workout_with_zero_exercises" classname="com.forge.presentation.workout.ActiveWorkoutFlowTest" time="0.068"/>
+  <testcase name="workout_can_subsequently_add_an_exercise_and_sets" classname="com.forge.presentation.workout.ActiveWorkoutFlowTest" time="0.133"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

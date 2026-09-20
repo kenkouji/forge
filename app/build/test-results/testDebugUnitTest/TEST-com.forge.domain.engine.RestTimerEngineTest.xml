@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.domain.engine.RestTimerEngineTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-09-20T18:07:57" hostname="GAasishs-MacBook-Pro.local" time="0.093">
+  <properties/>
+  <testcase name="pause_and_resume_preserves_remaining_time" classname="com.forge.domain.engine.RestTimerEngineTest" time="0.087"/>
+  <testcase name="timer_survives_process_recovery_using_timestamps" classname="com.forge.domain.engine.RestTimerEngineTest" time="0.001"/>
+  <testcase name="timer_completes_gracefully_if_expired_while_backgrounded" classname="com.forge.domain.engine.RestTimerEngineTest" time="0.001"/>
+  <testcase name="timer_starts_with_correct_timestamps_and_duration" classname="com.forge.domain.engine.RestTimerEngineTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

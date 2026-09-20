@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.forge.app-mergeDebugResources-55:/values-ne/values-ne.xml",
+            "outputFile": "com.forge.app-mergeDebugResources-56:/values-ne/values-ne.xml",
             "map": [
                 {
                     "source": "/Users/g.aasish/.gradle/caches/transforms-4/df0a2f40a0cbfa20599be897facc7717/transformed/foundation-release/res/values-ne/values-ne.xml",

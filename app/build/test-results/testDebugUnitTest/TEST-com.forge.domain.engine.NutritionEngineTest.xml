@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.domain.engine.NutritionEngineTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-09-20T18:07:57" hostname="GAasishs-MacBook-Pro.local" time="0.021">
+  <properties/>
+  <testcase name="macro_split_calories_are_internally_consistent" classname="com.forge.domain.engine.NutritionEngineTest" time="0.012"/>
+  <testcase name="maintenance_estimation_calculates_reasonable_values" classname="com.forge.domain.engine.NutritionEngineTest" time="0.006"/>
+  <testcase name="weight_trend_detects_plateau_on_cut" classname="com.forge.domain.engine.NutritionEngineTest" time="0.002"/>
+  <testcase name="weight_trend_requires_at_least_seven_days" classname="com.forge.domain.engine.NutritionEngineTest" time="0.0"/>
+  <testcase name="weight_trend_detects_optimal_lean_bulk" classname="com.forge.domain.engine.NutritionEngineTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -86,6 +86,12 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises WHERE id = :id LIMIT 1")
     fun getExerciseById(id: String): Flow<ExerciseEntity?>
 
+    @Query("SELECT * FROM exercises WHERE id = :id LIMIT 1")
+    suspend fun getExerciseByIdSync(id: String): ExerciseEntity?
+
+    @Query("SELECT * FROM exercises WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
+    suspend fun searchExercisesSync(query: String): List<ExerciseEntity>
+
     @Query("SELECT COUNT(*) FROM exercises")
     suspend fun getExerciseCount(): Int
 
@@ -244,8 +250,13 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercise_personal_records WHERE exercise_id = :exerciseId LIMIT 1")
     suspend fun getPersonalRecordDirect(exerciseId: String): com.forge.data.local.entity.ExercisePersonalRecordEntity?
 
+    suspend fun getPersonalRecordSync(exerciseId: String) = getPersonalRecordDirect(exerciseId)
+
     @Query("SELECT * FROM exercise_personal_records ORDER BY achieved_at DESC")
     fun getAllPersonalRecords(): Flow<List<com.forge.data.local.entity.ExercisePersonalRecordEntity>>
+
+    @Query("SELECT * FROM exercise_personal_records ORDER BY achieved_at DESC")
+    suspend fun getAllPersonalRecordsSync(): List<com.forge.data.local.entity.ExercisePersonalRecordEntity>
 
 
     // Nutrition & Weight Queries (Part E)

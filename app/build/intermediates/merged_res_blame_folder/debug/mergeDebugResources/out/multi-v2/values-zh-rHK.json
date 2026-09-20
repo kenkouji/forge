@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.forge.app-mergeDebugResources-55:/values-zh-rHK/values-zh-rHK.xml",
+            "outputFile": "com.forge.app-mergeDebugResources-56:/values-zh-rHK/values-zh-rHK.xml",
             "map": [
                 {
                     "source": "/Users/g.aasish/.gradle/caches/transforms-4/677cf9860ef150730a94f74abe684384/transformed/ui-release/res/values-zh-rHK/values-zh-rHK.xml",

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.domain.engine.ProgressionEngineTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-09-20T18:07:57" hostname="GAasishs-MacBook-Pro.local" time="0.025">
+  <properties/>
+  <testcase name="epley_1rm_calculation_is_accurate" classname="com.forge.domain.engine.ProgressionEngineTest" time="0.006"/>
+  <testcase name="double_progression_increases_load_when_top_of_range_reached_with_good_rir" classname="com.forge.domain.engine.ProgressionEngineTest" time="0.007"/>
+  <testcase name="intra_session_rep_collapse_flags_fatigue_and_maintains_load" classname="com.forge.domain.engine.ProgressionEngineTest" time="0.003"/>
+  <testcase name="double_progression_maintains_load_when_rir_is_zero_despite_hitting_top_reps" classname="com.forge.domain.engine.ProgressionEngineTest" time="0.0"/>
+  <testcase name="double_progression_recommends_adding_reps_when_inside_target_range" classname="com.forge.domain.engine.ProgressionEngineTest" time="0.002"/>
+  <testcase name="personal_record_detection_identifies_weight_and_1rm_improvements" classname="com.forge.domain.engine.ProgressionEngineTest" time="0.005"/>
+  <testcase name="sustained_performance_decline_across_sessions_flags_fatigue_and_advises_deload" classname="com.forge.domain.engine.ProgressionEngineTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.data.local.ForgeDatabaseTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-09-20T18:07:57" hostname="GAasishs-MacBook-Pro.local" time="0.168">
+  <properties/>
+  <testcase name="database_opensAndInsertsExerciseSuccessfully" classname="com.forge.data.local.ForgeDatabaseTest" time="0.091"/>
+  <testcase name="database_ftsAndAliasSearchReturnsCorrectExercise" classname="com.forge.data.local.ForgeDatabaseTest" time="0.077"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

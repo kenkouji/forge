@@ -20,12 +20,25 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.forge.core.designsystem.theme.ForgeTheme
 import com.forge.data.repository.ExerciseRepositoryImpl
+import com.forge.data.repository.HealthConnectRepositoryImpl
 import com.forge.data.repository.WorkoutRepositoryImpl
+import com.forge.domain.engine.AssistantService
+import com.forge.domain.engine.HealthConnectPipeline
+import com.forge.domain.engine.NotificationScheduler
+import com.forge.domain.engine.TransformationVaultManager
+import com.forge.domain.engine.VoiceCoachEngine
 import com.forge.presentation.exercise.ExerciseDetailViewModel
 import com.forge.presentation.exercise.ExerciseLibraryViewModel
+import com.forge.presentation.home.HomeViewModel
+import com.forge.presentation.journey.JourneyViewModel
 import com.forge.presentation.navigation.ForgeAppRoot
 import com.forge.presentation.navigation.ForgeNavDestination
+import com.forge.presentation.nutrition.NutritionViewModel
+import com.forge.presentation.onboarding.InitializationViewModel
+import com.forge.presentation.profile.ProfileViewModel
+import com.forge.presentation.progress.ProgressViewModel
 import com.forge.presentation.workout.ActiveWorkoutViewModel
+import com.forge.presentation.workout.WorkoutsViewModel
 
 class MainActivity : ComponentActivity() {
 
@@ -33,18 +46,69 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val app = application as ForgeApp
-        val workoutRepository = WorkoutRepositoryImpl(app.database.workoutDao())
-        val exerciseRepository = ExerciseRepositoryImpl(app.database.exerciseDao())
-        val voiceCoachEngine = com.forge.domain.engine.VoiceCoachEngine(this)
+        val db = app.database
+
+        val userProfileDao = db.userProfileDao()
+        val trainingScheduleDao = db.trainingScheduleDao()
+        val workoutTemplateDao = db.workoutTemplateDao()
+        val dailyActivityDao = db.dailyActivityDao()
+        val transformationDao = db.transformationDao()
+        val appSettingsDao = db.appSettingsDao()
+        val workoutDao = db.workoutDao()
+        val exerciseDao = db.exerciseDao()
+
+        val workoutRepository = WorkoutRepositoryImpl(workoutDao)
+        val exerciseRepository = ExerciseRepositoryImpl(exerciseDao)
+        val healthConnectRepository = HealthConnectRepositoryImpl(this)
+
+        val vaultManager = TransformationVaultManager(this)
+        val notificationScheduler = NotificationScheduler(this)
+        val healthConnectPipeline = HealthConnectPipeline(this, dailyActivityDao, healthConnectRepository)
+
+        val assistantService = AssistantService(
+            userProfileDao = userProfileDao,
+            trainingScheduleDao = trainingScheduleDao,
+            workoutTemplateDao = workoutTemplateDao,
+            exerciseDao = exerciseDao,
+            dailyActivityDao = dailyActivityDao,
+            workoutDao = workoutDao,
+            transformationDao = transformationDao
+        )
+
+        val voiceCoachEngine = VoiceCoachEngine(this)
         val activeWorkoutViewModel = ActiveWorkoutViewModel(workoutRepository, exerciseRepository, voiceCoachEngine)
         val exerciseLibraryViewModel = ExerciseLibraryViewModel(exerciseRepository)
         val exerciseDetailViewModel = ExerciseDetailViewModel(exerciseRepository)
-        val progressViewModel = com.forge.presentation.progress.ProgressViewModel(workoutRepository, exerciseRepository)
+        val homeViewModel = HomeViewModel(
+            userProfileDao = userProfileDao,
+            trainingScheduleDao = trainingScheduleDao,
+            workoutDao = workoutDao,
+            dailyActivityDao = dailyActivityDao,
+            healthPipeline = healthConnectPipeline,
+            exerciseDao = exerciseDao,
+            transformationDao = transformationDao
+        )
+        val workoutsViewModel = WorkoutsViewModel(trainingScheduleDao, workoutTemplateDao, workoutDao, exerciseRepository)
+        val progressViewModel = ProgressViewModel(workoutRepository, exerciseRepository)
+        val journeyViewModel = JourneyViewModel(transformationDao, userProfileDao, vaultManager)
+        val profileViewModel = ProfileViewModel(
+            userProfileDao = userProfileDao,
+            appSettingsDao = appSettingsDao,
+            workoutDao = workoutDao,
+            exerciseDao = exerciseDao,
+            trainingScheduleDao = trainingScheduleDao,
+            workoutTemplateDao = workoutTemplateDao,
+            dailyActivityDao = dailyActivityDao,
+            transformationDao = transformationDao
+        )
+        val nutritionViewModel = NutritionViewModel(userProfileDao, dailyActivityDao, workoutDao)
+        val initializationViewModel = InitializationViewModel(userProfileDao, trainingScheduleDao, workoutTemplateDao, vaultManager)
 
         setContent {
             ForgeTheme {
                 val navController = rememberNavController()
                 val activeSession by workoutRepository.getActiveSession().collectAsState(initial = null)
+                val userProfile by userProfileDao.getUserProfile().collectAsState(initial = null)
                 var showRecoveryDialog by remember { mutableStateOf(false) }
                 var hasHandledDialog by remember { mutableStateOf(false) }
 
@@ -53,19 +117,29 @@ class MainActivity : ComponentActivity() {
                     showRecoveryDialog = true
                 }
 
+                val isInitialized = userProfile?.isInitialized == true
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(ForgeTheme.colors.background)
                 ) {
                     ForgeAppRoot(
+                        homeViewModel = homeViewModel,
+                        workoutsViewModel = workoutsViewModel,
                         activeWorkoutViewModel = activeWorkoutViewModel,
                         exerciseLibraryViewModel = exerciseLibraryViewModel,
                         exerciseDetailViewModel = exerciseDetailViewModel,
                         progressViewModel = progressViewModel,
+                        journeyViewModel = journeyViewModel,
+                        profileViewModel = profileViewModel,
+                        nutritionViewModel = nutritionViewModel,
+                        initializationViewModel = initializationViewModel,
+                        assistantService = assistantService,
+                        isInitialized = isInitialized,
                         navController = navController,
                         hasActiveWorkout = activeSession != null,
-                        activeWorkoutTitle = activeSession?.let { "${it.name} (${it.totalVolumeKg} kg logged)" },
+                        activeWorkoutTitle = activeSession?.let { "${it.name} (${it.totalVolumeKg.toInt()} kg logged)" },
                         onResumeWorkoutClick = {
                             navController.navigate(ForgeNavDestination.ActiveWorkout.route)
                         }
@@ -98,10 +172,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = ForgeTheme.colors.primary)
                                 ) {
-                                    Text(
-                                        text = "Resume",
-                                        color = ForgeTheme.colors.background
-                                    )
+                                    Text("Resume", color = ForgeTheme.colors.onPrimary)
                                 }
                             },
                             dismissButton = {
@@ -109,16 +180,12 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         showRecoveryDialog = false
                                         hasHandledDialog = true
-                                        activeWorkoutViewModel.discardWorkout {}
                                     }
                                 ) {
-                                    Text(
-                                        text = "Discard",
-                                        color = ForgeTheme.colors.error
-                                    )
+                                    Text("Dismiss", color = ForgeTheme.colors.textSecondary)
                                 }
                             },
-                            containerColor = ForgeTheme.colors.surfaceElevated
+                            containerColor = ForgeTheme.colors.surface
                         )
                     }
                 }

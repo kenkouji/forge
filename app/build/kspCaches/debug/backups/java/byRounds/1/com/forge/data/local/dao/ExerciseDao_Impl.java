@@ -1024,6 +1024,308 @@ public final class ExerciseDao_Impl implements ExerciseDao {
   }
 
   @Override
+  public Object getExerciseByIdSync(final String id,
+      final Continuation<? super ExerciseEntity> $completion) {
+    final String _sql = "SELECT * FROM exercises WHERE id = ? LIMIT 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    _statement.bindString(_argIndex, id);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<ExerciseEntity>() {
+      @Override
+      @Nullable
+      public ExerciseEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfName = CursorUtil.getColumnIndexOrThrow(_cursor, "name");
+          final int _cursorIndexOfCanonicalName = CursorUtil.getColumnIndexOrThrow(_cursor, "canonical_name");
+          final int _cursorIndexOfMovementPattern = CursorUtil.getColumnIndexOrThrow(_cursor, "movement_pattern");
+          final int _cursorIndexOfMechanic = CursorUtil.getColumnIndexOrThrow(_cursor, "mechanic");
+          final int _cursorIndexOfForceType = CursorUtil.getColumnIndexOrThrow(_cursor, "force_type");
+          final int _cursorIndexOfExperienceLevel = CursorUtil.getColumnIndexOrThrow(_cursor, "experience_level");
+          final int _cursorIndexOfInstructions = CursorUtil.getColumnIndexOrThrow(_cursor, "instructions");
+          final int _cursorIndexOfFormCues = CursorUtil.getColumnIndexOrThrow(_cursor, "form_cues");
+          final int _cursorIndexOfCommonMistakes = CursorUtil.getColumnIndexOrThrow(_cursor, "common_mistakes");
+          final int _cursorIndexOfYoutubeVideoId = CursorUtil.getColumnIndexOrThrow(_cursor, "youtube_video_id");
+          final int _cursorIndexOfIsCustom = CursorUtil.getColumnIndexOrThrow(_cursor, "is_custom");
+          final int _cursorIndexOfSource = CursorUtil.getColumnIndexOrThrow(_cursor, "source");
+          final int _cursorIndexOfSourceId = CursorUtil.getColumnIndexOrThrow(_cursor, "source_id");
+          final int _cursorIndexOfSourceCategory = CursorUtil.getColumnIndexOrThrow(_cursor, "source_category");
+          final int _cursorIndexOfSourceForce = CursorUtil.getColumnIndexOrThrow(_cursor, "source_force");
+          final int _cursorIndexOfSourceLevel = CursorUtil.getColumnIndexOrThrow(_cursor, "source_level");
+          final int _cursorIndexOfSourceMechanic = CursorUtil.getColumnIndexOrThrow(_cursor, "source_mechanic");
+          final int _cursorIndexOfSourceEquipment = CursorUtil.getColumnIndexOrThrow(_cursor, "source_equipment");
+          final int _cursorIndexOfForgeMovementPattern = CursorUtil.getColumnIndexOrThrow(_cursor, "forge_movement_pattern");
+          final int _cursorIndexOfForgeExerciseFamilyId = CursorUtil.getColumnIndexOrThrow(_cursor, "forge_exercise_family_id");
+          final int _cursorIndexOfSearchTokens = CursorUtil.getColumnIndexOrThrow(_cursor, "search_tokens");
+          final int _cursorIndexOfLicense = CursorUtil.getColumnIndexOrThrow(_cursor, "license");
+          final int _cursorIndexOfIsPopular = CursorUtil.getColumnIndexOrThrow(_cursor, "is_popular");
+          final int _cursorIndexOfPopularityRank = CursorUtil.getColumnIndexOrThrow(_cursor, "popularity_rank");
+          final int _cursorIndexOfIsFavorite = CursorUtil.getColumnIndexOrThrow(_cursor, "is_favorite");
+          final int _cursorIndexOfCreatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "created_at");
+          final int _cursorIndexOfUpdatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "updated_at");
+          final ExerciseEntity _result;
+          if (_cursor.moveToFirst()) {
+            final String _tmpId;
+            _tmpId = _cursor.getString(_cursorIndexOfId);
+            final String _tmpName;
+            _tmpName = _cursor.getString(_cursorIndexOfName);
+            final String _tmpCanonicalName;
+            _tmpCanonicalName = _cursor.getString(_cursorIndexOfCanonicalName);
+            final String _tmpMovementPattern;
+            _tmpMovementPattern = _cursor.getString(_cursorIndexOfMovementPattern);
+            final String _tmpMechanic;
+            _tmpMechanic = _cursor.getString(_cursorIndexOfMechanic);
+            final String _tmpForceType;
+            _tmpForceType = _cursor.getString(_cursorIndexOfForceType);
+            final String _tmpExperienceLevel;
+            _tmpExperienceLevel = _cursor.getString(_cursorIndexOfExperienceLevel);
+            final String _tmpInstructions;
+            _tmpInstructions = _cursor.getString(_cursorIndexOfInstructions);
+            final String _tmpFormCues;
+            _tmpFormCues = _cursor.getString(_cursorIndexOfFormCues);
+            final String _tmpCommonMistakes;
+            _tmpCommonMistakes = _cursor.getString(_cursorIndexOfCommonMistakes);
+            final String _tmpYoutubeVideoId;
+            if (_cursor.isNull(_cursorIndexOfYoutubeVideoId)) {
+              _tmpYoutubeVideoId = null;
+            } else {
+              _tmpYoutubeVideoId = _cursor.getString(_cursorIndexOfYoutubeVideoId);
+            }
+            final boolean _tmpIsCustom;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsCustom);
+            _tmpIsCustom = _tmp != 0;
+            final String _tmpSource;
+            _tmpSource = _cursor.getString(_cursorIndexOfSource);
+            final String _tmpSourceId;
+            if (_cursor.isNull(_cursorIndexOfSourceId)) {
+              _tmpSourceId = null;
+            } else {
+              _tmpSourceId = _cursor.getString(_cursorIndexOfSourceId);
+            }
+            final String _tmpSourceCategory;
+            if (_cursor.isNull(_cursorIndexOfSourceCategory)) {
+              _tmpSourceCategory = null;
+            } else {
+              _tmpSourceCategory = _cursor.getString(_cursorIndexOfSourceCategory);
+            }
+            final String _tmpSourceForce;
+            if (_cursor.isNull(_cursorIndexOfSourceForce)) {
+              _tmpSourceForce = null;
+            } else {
+              _tmpSourceForce = _cursor.getString(_cursorIndexOfSourceForce);
+            }
+            final String _tmpSourceLevel;
+            if (_cursor.isNull(_cursorIndexOfSourceLevel)) {
+              _tmpSourceLevel = null;
+            } else {
+              _tmpSourceLevel = _cursor.getString(_cursorIndexOfSourceLevel);
+            }
+            final String _tmpSourceMechanic;
+            if (_cursor.isNull(_cursorIndexOfSourceMechanic)) {
+              _tmpSourceMechanic = null;
+            } else {
+              _tmpSourceMechanic = _cursor.getString(_cursorIndexOfSourceMechanic);
+            }
+            final String _tmpSourceEquipment;
+            if (_cursor.isNull(_cursorIndexOfSourceEquipment)) {
+              _tmpSourceEquipment = null;
+            } else {
+              _tmpSourceEquipment = _cursor.getString(_cursorIndexOfSourceEquipment);
+            }
+            final String _tmpForgeMovementPattern;
+            _tmpForgeMovementPattern = _cursor.getString(_cursorIndexOfForgeMovementPattern);
+            final String _tmpForgeExerciseFamilyId;
+            if (_cursor.isNull(_cursorIndexOfForgeExerciseFamilyId)) {
+              _tmpForgeExerciseFamilyId = null;
+            } else {
+              _tmpForgeExerciseFamilyId = _cursor.getString(_cursorIndexOfForgeExerciseFamilyId);
+            }
+            final String _tmpSearchTokens;
+            _tmpSearchTokens = _cursor.getString(_cursorIndexOfSearchTokens);
+            final String _tmpLicense;
+            _tmpLicense = _cursor.getString(_cursorIndexOfLicense);
+            final boolean _tmpIsPopular;
+            final int _tmp_1;
+            _tmp_1 = _cursor.getInt(_cursorIndexOfIsPopular);
+            _tmpIsPopular = _tmp_1 != 0;
+            final int _tmpPopularityRank;
+            _tmpPopularityRank = _cursor.getInt(_cursorIndexOfPopularityRank);
+            final boolean _tmpIsFavorite;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfIsFavorite);
+            _tmpIsFavorite = _tmp_2 != 0;
+            final long _tmpCreatedAt;
+            _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
+            final long _tmpUpdatedAt;
+            _tmpUpdatedAt = _cursor.getLong(_cursorIndexOfUpdatedAt);
+            _result = new ExerciseEntity(_tmpId,_tmpName,_tmpCanonicalName,_tmpMovementPattern,_tmpMechanic,_tmpForceType,_tmpExperienceLevel,_tmpInstructions,_tmpFormCues,_tmpCommonMistakes,_tmpYoutubeVideoId,_tmpIsCustom,_tmpSource,_tmpSourceId,_tmpSourceCategory,_tmpSourceForce,_tmpSourceLevel,_tmpSourceMechanic,_tmpSourceEquipment,_tmpForgeMovementPattern,_tmpForgeExerciseFamilyId,_tmpSearchTokens,_tmpLicense,_tmpIsPopular,_tmpPopularityRank,_tmpIsFavorite,_tmpCreatedAt,_tmpUpdatedAt);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object searchExercisesSync(final String query,
+      final Continuation<? super List<ExerciseEntity>> $completion) {
+    final String _sql = "SELECT * FROM exercises WHERE name LIKE '%' || ? || '%' ORDER BY name ASC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    _statement.bindString(_argIndex, query);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<ExerciseEntity>>() {
+      @Override
+      @NonNull
+      public List<ExerciseEntity> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfName = CursorUtil.getColumnIndexOrThrow(_cursor, "name");
+          final int _cursorIndexOfCanonicalName = CursorUtil.getColumnIndexOrThrow(_cursor, "canonical_name");
+          final int _cursorIndexOfMovementPattern = CursorUtil.getColumnIndexOrThrow(_cursor, "movement_pattern");
+          final int _cursorIndexOfMechanic = CursorUtil.getColumnIndexOrThrow(_cursor, "mechanic");
+          final int _cursorIndexOfForceType = CursorUtil.getColumnIndexOrThrow(_cursor, "force_type");
+          final int _cursorIndexOfExperienceLevel = CursorUtil.getColumnIndexOrThrow(_cursor, "experience_level");
+          final int _cursorIndexOfInstructions = CursorUtil.getColumnIndexOrThrow(_cursor, "instructions");
+          final int _cursorIndexOfFormCues = CursorUtil.getColumnIndexOrThrow(_cursor, "form_cues");
+          final int _cursorIndexOfCommonMistakes = CursorUtil.getColumnIndexOrThrow(_cursor, "common_mistakes");
+          final int _cursorIndexOfYoutubeVideoId = CursorUtil.getColumnIndexOrThrow(_cursor, "youtube_video_id");
+          final int _cursorIndexOfIsCustom = CursorUtil.getColumnIndexOrThrow(_cursor, "is_custom");
+          final int _cursorIndexOfSource = CursorUtil.getColumnIndexOrThrow(_cursor, "source");
+          final int _cursorIndexOfSourceId = CursorUtil.getColumnIndexOrThrow(_cursor, "source_id");
+          final int _cursorIndexOfSourceCategory = CursorUtil.getColumnIndexOrThrow(_cursor, "source_category");
+          final int _cursorIndexOfSourceForce = CursorUtil.getColumnIndexOrThrow(_cursor, "source_force");
+          final int _cursorIndexOfSourceLevel = CursorUtil.getColumnIndexOrThrow(_cursor, "source_level");
+          final int _cursorIndexOfSourceMechanic = CursorUtil.getColumnIndexOrThrow(_cursor, "source_mechanic");
+          final int _cursorIndexOfSourceEquipment = CursorUtil.getColumnIndexOrThrow(_cursor, "source_equipment");
+          final int _cursorIndexOfForgeMovementPattern = CursorUtil.getColumnIndexOrThrow(_cursor, "forge_movement_pattern");
+          final int _cursorIndexOfForgeExerciseFamilyId = CursorUtil.getColumnIndexOrThrow(_cursor, "forge_exercise_family_id");
+          final int _cursorIndexOfSearchTokens = CursorUtil.getColumnIndexOrThrow(_cursor, "search_tokens");
+          final int _cursorIndexOfLicense = CursorUtil.getColumnIndexOrThrow(_cursor, "license");
+          final int _cursorIndexOfIsPopular = CursorUtil.getColumnIndexOrThrow(_cursor, "is_popular");
+          final int _cursorIndexOfPopularityRank = CursorUtil.getColumnIndexOrThrow(_cursor, "popularity_rank");
+          final int _cursorIndexOfIsFavorite = CursorUtil.getColumnIndexOrThrow(_cursor, "is_favorite");
+          final int _cursorIndexOfCreatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "created_at");
+          final int _cursorIndexOfUpdatedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "updated_at");
+          final List<ExerciseEntity> _result = new ArrayList<ExerciseEntity>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final ExerciseEntity _item;
+            final String _tmpId;
+            _tmpId = _cursor.getString(_cursorIndexOfId);
+            final String _tmpName;
+            _tmpName = _cursor.getString(_cursorIndexOfName);
+            final String _tmpCanonicalName;
+            _tmpCanonicalName = _cursor.getString(_cursorIndexOfCanonicalName);
+            final String _tmpMovementPattern;
+            _tmpMovementPattern = _cursor.getString(_cursorIndexOfMovementPattern);
+            final String _tmpMechanic;
+            _tmpMechanic = _cursor.getString(_cursorIndexOfMechanic);
+            final String _tmpForceType;
+            _tmpForceType = _cursor.getString(_cursorIndexOfForceType);
+            final String _tmpExperienceLevel;
+            _tmpExperienceLevel = _cursor.getString(_cursorIndexOfExperienceLevel);
+            final String _tmpInstructions;
+            _tmpInstructions = _cursor.getString(_cursorIndexOfInstructions);
+            final String _tmpFormCues;
+            _tmpFormCues = _cursor.getString(_cursorIndexOfFormCues);
+            final String _tmpCommonMistakes;
+            _tmpCommonMistakes = _cursor.getString(_cursorIndexOfCommonMistakes);
+            final String _tmpYoutubeVideoId;
+            if (_cursor.isNull(_cursorIndexOfYoutubeVideoId)) {
+              _tmpYoutubeVideoId = null;
+            } else {
+              _tmpYoutubeVideoId = _cursor.getString(_cursorIndexOfYoutubeVideoId);
+            }
+            final boolean _tmpIsCustom;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsCustom);
+            _tmpIsCustom = _tmp != 0;
+            final String _tmpSource;
+            _tmpSource = _cursor.getString(_cursorIndexOfSource);
+            final String _tmpSourceId;
+            if (_cursor.isNull(_cursorIndexOfSourceId)) {
+              _tmpSourceId = null;
+            } else {
+              _tmpSourceId = _cursor.getString(_cursorIndexOfSourceId);
+            }
+            final String _tmpSourceCategory;
+            if (_cursor.isNull(_cursorIndexOfSourceCategory)) {
+              _tmpSourceCategory = null;
+            } else {
+              _tmpSourceCategory = _cursor.getString(_cursorIndexOfSourceCategory);
+            }
+            final String _tmpSourceForce;
+            if (_cursor.isNull(_cursorIndexOfSourceForce)) {
+              _tmpSourceForce = null;
+            } else {
+              _tmpSourceForce = _cursor.getString(_cursorIndexOfSourceForce);
+            }
+            final String _tmpSourceLevel;
+            if (_cursor.isNull(_cursorIndexOfSourceLevel)) {
+              _tmpSourceLevel = null;
+            } else {
+              _tmpSourceLevel = _cursor.getString(_cursorIndexOfSourceLevel);
+            }
+            final String _tmpSourceMechanic;
+            if (_cursor.isNull(_cursorIndexOfSourceMechanic)) {
+              _tmpSourceMechanic = null;
+            } else {
+              _tmpSourceMechanic = _cursor.getString(_cursorIndexOfSourceMechanic);
+            }
+            final String _tmpSourceEquipment;
+            if (_cursor.isNull(_cursorIndexOfSourceEquipment)) {
+              _tmpSourceEquipment = null;
+            } else {
+              _tmpSourceEquipment = _cursor.getString(_cursorIndexOfSourceEquipment);
+            }
+            final String _tmpForgeMovementPattern;
+            _tmpForgeMovementPattern = _cursor.getString(_cursorIndexOfForgeMovementPattern);
+            final String _tmpForgeExerciseFamilyId;
+            if (_cursor.isNull(_cursorIndexOfForgeExerciseFamilyId)) {
+              _tmpForgeExerciseFamilyId = null;
+            } else {
+              _tmpForgeExerciseFamilyId = _cursor.getString(_cursorIndexOfForgeExerciseFamilyId);
+            }
+            final String _tmpSearchTokens;
+            _tmpSearchTokens = _cursor.getString(_cursorIndexOfSearchTokens);
+            final String _tmpLicense;
+            _tmpLicense = _cursor.getString(_cursorIndexOfLicense);
+            final boolean _tmpIsPopular;
+            final int _tmp_1;
+            _tmp_1 = _cursor.getInt(_cursorIndexOfIsPopular);
+            _tmpIsPopular = _tmp_1 != 0;
+            final int _tmpPopularityRank;
+            _tmpPopularityRank = _cursor.getInt(_cursorIndexOfPopularityRank);
+            final boolean _tmpIsFavorite;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfIsFavorite);
+            _tmpIsFavorite = _tmp_2 != 0;
+            final long _tmpCreatedAt;
+            _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
+            final long _tmpUpdatedAt;
+            _tmpUpdatedAt = _cursor.getLong(_cursorIndexOfUpdatedAt);
+            _item = new ExerciseEntity(_tmpId,_tmpName,_tmpCanonicalName,_tmpMovementPattern,_tmpMechanic,_tmpForceType,_tmpExperienceLevel,_tmpInstructions,_tmpFormCues,_tmpCommonMistakes,_tmpYoutubeVideoId,_tmpIsCustom,_tmpSource,_tmpSourceId,_tmpSourceCategory,_tmpSourceForce,_tmpSourceLevel,_tmpSourceMechanic,_tmpSourceEquipment,_tmpForgeMovementPattern,_tmpForgeExerciseFamilyId,_tmpSearchTokens,_tmpLicense,_tmpIsPopular,_tmpPopularityRank,_tmpIsFavorite,_tmpCreatedAt,_tmpUpdatedAt);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Object getExerciseCount(final Continuation<? super Integer> $completion) {
     final String _sql = "SELECT COUNT(*) FROM exercises";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
@@ -2801,6 +3103,54 @@ public final class ExerciseDao_Impl implements ExerciseDao {
   }
 
   @Override
+  public Object getAllPersonalRecordsSync(
+      final Continuation<? super List<ExercisePersonalRecordEntity>> $completion) {
+    final String _sql = "SELECT * FROM exercise_personal_records ORDER BY achieved_at DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<ExercisePersonalRecordEntity>>() {
+      @Override
+      @NonNull
+      public List<ExercisePersonalRecordEntity> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfExerciseId = CursorUtil.getColumnIndexOrThrow(_cursor, "exercise_id");
+          final int _cursorIndexOfMaxWeightKg = CursorUtil.getColumnIndexOrThrow(_cursor, "max_weight_kg");
+          final int _cursorIndexOfMaxRepsAtMaxWeight = CursorUtil.getColumnIndexOrThrow(_cursor, "max_reps_at_max_weight");
+          final int _cursorIndexOfEstimated1RmKg = CursorUtil.getColumnIndexOrThrow(_cursor, "estimated_1rm_kg");
+          final int _cursorIndexOfBestSetVolumeKg = CursorUtil.getColumnIndexOrThrow(_cursor, "best_set_volume_kg");
+          final int _cursorIndexOfBestSessionVolumeKg = CursorUtil.getColumnIndexOrThrow(_cursor, "best_session_volume_kg");
+          final int _cursorIndexOfAchievedAt = CursorUtil.getColumnIndexOrThrow(_cursor, "achieved_at");
+          final List<ExercisePersonalRecordEntity> _result = new ArrayList<ExercisePersonalRecordEntity>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final ExercisePersonalRecordEntity _item;
+            final String _tmpExerciseId;
+            _tmpExerciseId = _cursor.getString(_cursorIndexOfExerciseId);
+            final double _tmpMaxWeightKg;
+            _tmpMaxWeightKg = _cursor.getDouble(_cursorIndexOfMaxWeightKg);
+            final int _tmpMaxRepsAtMaxWeight;
+            _tmpMaxRepsAtMaxWeight = _cursor.getInt(_cursorIndexOfMaxRepsAtMaxWeight);
+            final double _tmpEstimated1RmKg;
+            _tmpEstimated1RmKg = _cursor.getDouble(_cursorIndexOfEstimated1RmKg);
+            final double _tmpBestSetVolumeKg;
+            _tmpBestSetVolumeKg = _cursor.getDouble(_cursorIndexOfBestSetVolumeKg);
+            final double _tmpBestSessionVolumeKg;
+            _tmpBestSessionVolumeKg = _cursor.getDouble(_cursorIndexOfBestSessionVolumeKg);
+            final long _tmpAchievedAt;
+            _tmpAchievedAt = _cursor.getLong(_cursorIndexOfAchievedAt);
+            _item = new ExercisePersonalRecordEntity(_tmpExerciseId,_tmpMaxWeightKg,_tmpMaxRepsAtMaxWeight,_tmpEstimated1RmKg,_tmpBestSetVolumeKg,_tmpBestSessionVolumeKg,_tmpAchievedAt);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Flow<UserNutritionProfileEntity> getNutritionProfile() {
     final String _sql = "SELECT * FROM user_nutrition_profile WHERE id = 'primary_profile' LIMIT 1";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
@@ -2899,6 +3249,12 @@ public final class ExerciseDao_Impl implements ExerciseDao {
         _statement.release();
       }
     });
+  }
+
+  @Override
+  public Object getPersonalRecordSync(final String exerciseId,
+      final Continuation<? super ExercisePersonalRecordEntity> $completion) {
+    return ExerciseDao.DefaultImpls.getPersonalRecordSync(ExerciseDao_Impl.this, exerciseId, $completion);
   }
 
   @NonNull

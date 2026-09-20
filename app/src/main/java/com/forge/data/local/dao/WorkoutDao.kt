@@ -31,6 +31,9 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sessions ORDER BY start_time DESC")
     fun getAllSessions(): Flow<List<WorkoutSessionEntity>>
 
+    @Query("SELECT * FROM workout_sessions ORDER BY start_time DESC")
+    suspend fun getAllSessionsSync(): List<WorkoutSessionEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSets(sets: List<WorkoutSetEntity>)
 
@@ -88,4 +91,13 @@ interface WorkoutDao {
 
     @Query("UPDATE workout_sessions SET status = 'DISCARDED', last_updated_at = :timestamp WHERE id = :sessionId")
     suspend fun discardSession(sessionId: String, timestamp: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM workout_sets WHERE exercise_id = :exerciseId ORDER BY id DESC")
+    suspend fun getCompletedSetsForExerciseSync(exerciseId: String): List<WorkoutSetEntity>
+
+    @Query("DELETE FROM workout_sessions")
+    suspend fun deleteAllSessions()
+
+    @Query("DELETE FROM workout_sets")
+    suspend fun deleteAllSets()
 }

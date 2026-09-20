@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - Full Functionality Audit, Rebuild & AI Intelligence Layer - 2026-09-20
+
+### Added
+- **Zero Mock Data & Unbroken State Pipeline:**
+  - Audited all 24 app features and completely purged all demo/placeholder/fabricated fitness data.
+  - Strict unidirectional data flow: `UI ← ViewModel ← Domain Engine ← Repository ← Persistent Data / Android System`.
+- **Database Migration v5 (`MIGRATION_4_5`):**
+  - Expanded `user_profile` table with `height_cm: Double`, `weight_kg: Double`, `age: Int`, `sex: String`.
+  - Added synchronous DAO operations for atomic transaction processing.
+  - Verified via `migration_4_to_5_createsUserProfileWithBodyTelemetry_andAllEntities` in `DatabaseMigrationTest`.
+- **Hard-Gated 12-Step Initialization Wizard & Permissions Setup:**
+  - Pre-populated zero fake data on install. Initialization is resume-protected if abandoned.
+  - New `PermissionsSetupScreen` for Health Connect, Notifications, and Camera with live connected state checks.
+  - Mifflin-St Jeor programmatic TDEE & macro derivation based on measured body telemetry.
+  - Custom raw workout program text parser with multi-day routine extraction.
+- **Home Command Center & Navigation Fix:**
+  - Exact layout hierarchy: `Today's Hero Card → AI Assistant Bar → Daily Snapshot → Activity Ring → Recent PR Card → Quick Actions`.
+  - Dynamic `MEASURED` (Health Connect) vs `ESTIMATED` (BMR fallback) calorie badge.
+  - Fixed Quick Action navigation trap: bottom bar re-selection explicitly clears intermediate child stacks down to Home root.
+  - Automatic transformation milestone check-in alert dialog.
+- **Editable Upcoming Workouts & Template Suite:**
+  - Interactive `SessionEditorSheet` with drag/reorder, set counts, rep ranges, target weight kg, RIR, warmup/dropset toggles, and exercise notes.
+  - 3 functional tabs in Workouts: `Schedule`, `Recent Workouts`, `Templates`.
+  - Immutable historical sessions: changes to future templates leave past completed workouts strictly intact.
+- **Local AI Intelligence Layer (`ForgeAiToolRegistry` & `AssistantService`):**
+  - Isolated from raw Room queries; operations execute exclusively through typed deterministic application tools.
+  - 27 read tools covering profile, goals, schedules, session details, progression, PRs, nutrition, weight, streak, vault status, and notifications.
+  - 18 write tools with interactive `PendingAction` preview diff cards (`diffRemove` vs `diffAdd`), requiring user confirmation before mutation.
+  - `ConversationContextResolver` resolving temporal anchors ("today", "tomorrow", "Tuesday") and coreferences ("that session", "increase it by 5kg").
+  - `LocalFoodNutritionEngine`: Pure deterministic offline whole-food nutrition density calculator estimating calories and macros from natural language meal descriptions.
+  - Provider fallback architecture: `DeterministicIntentProvider` authoritative fallback with pluggable local model engine.
+- **Transformation Vault Security Hardening:**
+  - Android Keystore master key (`AES-256-GCM` authenticated encryption).
+  - Salted PBKDF2 password derivation with zero plaintext password storage.
+  - Private storage in `noBackupFilesDir/vault/`.
+  - Auto-lock on app backgrounding via `ProcessLifecycleOwner`.
+  - 6-month interactive timeline slideshow and blurred thumbnail state.
+- **Real History Set Inspection:**
+  - Clickable history session cards opening a bottom modal sheet displaying individual sets, weights, reps, volumes, and empty state when no workouts exist.
+- **Automated Test Suite:**
+  - Added `LocalFoodNutritionEngineTest`, `ConversationContextResolverTest`, `ForgeAiToolRegistryTest`, and `DatabaseMigrationTest` (100% pass rate).
+
+---
+
 ## [0.4.0] - Phase 2.1 & Phase 3: Popular Exercise Layer, Navigation Fix, Liquid Glass Redesign, Adaptive Progressive Overload & Coaching Extensions - 2026-09-20
 
 ### Added

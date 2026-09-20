@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.domain.engine.LocalFoodNutritionEngineTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-09-20T18:07:57" hostname="GAasishs-MacBook-Pro.local" time="0.013">
+  <properties/>
+  <testcase name="estimateMealFromText_compositeMealString_aggregatesAllItems" classname="com.forge.domain.engine.LocalFoodNutritionEngineTest" time="0.007"/>
+  <testcase name="estimateMealFromText_unrecognizedWord_fallsBackToBalancedEstimate" classname="com.forge.domain.engine.LocalFoodNutritionEngineTest" time="0.003"/>
+  <testcase name="estimateMealFromText_singleItemGramQuantity_calculatesAccurately" classname="com.forge.domain.engine.LocalFoodNutritionEngineTest" time="0.0"/>
+  <testcase name="estimateMealFromText_pieceQuantity_convertsToGramsCorrectly" classname="com.forge.domain.engine.LocalFoodNutritionEngineTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

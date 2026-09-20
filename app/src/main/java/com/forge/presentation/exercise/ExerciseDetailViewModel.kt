@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class ExerciseDetailUiState(
     val exercise: ExerciseEntity? = null,
@@ -82,4 +83,32 @@ class ExerciseDetailViewModel(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val progressionRecord: StateFlow<com.forge.data.local.entity.ExerciseProgressionRecordEntity?> = _currentExerciseId
+        .flatMapLatest { id ->
+            if (id != null) {
+                kotlinx.coroutines.flow.flow<com.forge.data.local.entity.ExerciseProgressionRecordEntity?> {
+                    emit(exerciseRepository.getLatestProgressionDirect(id))
+                }
+            } else {
+                flowOf(null)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val personalRecord: StateFlow<com.forge.data.local.entity.ExercisePersonalRecordEntity?> = _currentExerciseId
+        .flatMapLatest { id ->
+            if (id != null) exerciseRepository.getPersonalRecord(id) else flowOf(null)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun toggleFavorite() {
+        val ex = exercise.value ?: return
+        viewModelScope.launch {
+            exerciseRepository.toggleFavorite(ex.id, !ex.isFavorite)
+        }
+    }
 }
+

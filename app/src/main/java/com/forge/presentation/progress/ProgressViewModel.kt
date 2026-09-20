@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 data class PrWithExercise(
@@ -70,4 +71,17 @@ class ProgressViewModel(
             }
         }
     }
+
+    fun loadSessionSets(sessionId: String, onLoaded: (List<com.forge.data.local.entity.WorkoutSetEntity>) -> Unit) {
+        viewModelScope.launch {
+            val sets = workoutRepository.getSetsForSessionDirect(sessionId)
+            onLoaded(sets)
+        }
+    }
+
+    suspend fun getExerciseName(exerciseId: String): String {
+        val ex = exerciseRepository.getExerciseById(exerciseId).firstOrNull()
+        return ex?.name ?: exerciseId.replace("_", " ").replaceFirstChar { it.uppercase() }
+    }
 }
+

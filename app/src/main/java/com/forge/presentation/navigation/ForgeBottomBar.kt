@@ -4,103 +4,115 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.forge.core.designsystem.component.GlassVariant
+import com.forge.core.designsystem.component.liquidGlass
 import com.forge.core.designsystem.theme.ForgeTheme
 
+/**
+ * Floating Pill Navigation Bar matching proto/src/components/forge/Layout.jsx:
+ * - Floating glass-strong pill container centered above the navigation bar
+ * - 5 items: Home, Workouts, Progress, Journey, Profile
+ * - Animated pill indicator on active item (bg-white/12 border border-white/12)
+ */
 @Composable
 fun ForgeBottomBar(
     currentRoute: String?,
     onNavigateToDestination: (ForgeNavDestination) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val borderColor = ForgeTheme.colors.divider
-
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .drawBehind {
-                drawLine(
-                    color = borderColor,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 1.dp.toPx()
-                )
-            }
-            .background(Color(0xEE090A0D))
             .navigationBarsPadding()
-            .padding(vertical = 10.dp, horizontal = 8.dp),
-        horizontalArrangement = Arrangement.SpaceAround,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(bottom = 16.dp),
+        contentAlignment = Alignment.Center
     ) {
-        ForgeNavDestination.rootDestinations.forEach { destination ->
-            val isSelected = currentRoute == destination.route ||
-                (destination == ForgeNavDestination.Workouts && (currentRoute == ForgeNavDestination.ExerciseLibrary.route || currentRoute?.startsWith("exercise_detail") == true))
+        Row(
+            modifier = Modifier
+                .clip(CircleShape)
+                .liquidGlass(variant = GlassVariant.STRONG, cornerRadius = 32.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ForgeNavDestination.rootDestinations.forEach { destination ->
+                val isSelected = currentRoute == destination.route ||
+                    (destination == ForgeNavDestination.Workouts &&
+                        (currentRoute == ForgeNavDestination.ExerciseLibrary.route ||
+                         currentRoute?.startsWith("exercise_detail") == true))
 
-            val textColor by animateColorAsState(
-                targetValue = if (isSelected) ForgeTheme.colors.primary else ForgeTheme.colors.textMuted,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
-                label = "bottomBarTextColor"
-            )
+                val icon: ImageVector = when (destination) {
+                    ForgeNavDestination.Home -> Icons.Filled.Home
+                    ForgeNavDestination.Workouts -> Icons.Filled.FitnessCenter
+                    ForgeNavDestination.Progress -> Icons.AutoMirrored.Filled.ShowChart
+                    ForgeNavDestination.Journey -> Icons.Filled.Explore
+                    ForgeNavDestination.Profile -> Icons.Filled.Person
+                    else -> Icons.Filled.Home
+                }
 
-            val interactionSource = remember { MutableInteractionSource() }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null
-                    ) { onNavigateToDestination(destination) }
-                    .padding(vertical = 6.dp)
-            ) {
-                Text(
-                    text = destination.title,
-                    color = textColor,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    softWrap = false,
-                    letterSpacing = 0.sp
+                val tintColor by animateColorAsState(
+                    targetValue = if (isSelected) ForgeTheme.colors.primary else Color(0x759696A2),
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "navIconTint"
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                val interactionSource = remember { MutableInteractionSource() }
 
-                // Subtle Apple-like active pill indicator
                 Box(
                     modifier = Modifier
-                        .height(2.dp)
-                        .width(if (isSelected) 16.dp else 0.dp)
-                        .clip(RoundedCornerShape(1.dp))
-                        .background(if (isSelected) ForgeTheme.colors.primary else Color.Transparent)
-                )
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isSelected) Color(0x1FFFFFFF) else Color.Transparent,
+                            CircleShape
+                        )
+                        .then(
+                            if (isSelected) Modifier.border(1.dp, Color(0x1FFFFFFF), CircleShape)
+                            else Modifier
+                        )
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) { onNavigateToDestination(destination) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = destination.title,
+                        tint = tintColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }

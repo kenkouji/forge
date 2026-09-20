@@ -12,10 +12,22 @@ import androidx.room.util.FtsTableInfo;
 import androidx.room.util.TableInfo;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 import androidx.sqlite.db.SupportSQLiteOpenHelper;
+import com.forge.data.local.dao.AppSettingsDao;
+import com.forge.data.local.dao.AppSettingsDao_Impl;
+import com.forge.data.local.dao.DailyActivityDao;
+import com.forge.data.local.dao.DailyActivityDao_Impl;
 import com.forge.data.local.dao.ExerciseDao;
 import com.forge.data.local.dao.ExerciseDao_Impl;
+import com.forge.data.local.dao.TrainingScheduleDao;
+import com.forge.data.local.dao.TrainingScheduleDao_Impl;
+import com.forge.data.local.dao.TransformationDao;
+import com.forge.data.local.dao.TransformationDao_Impl;
+import com.forge.data.local.dao.UserProfileDao;
+import com.forge.data.local.dao.UserProfileDao_Impl;
 import com.forge.data.local.dao.WorkoutDao;
 import com.forge.data.local.dao.WorkoutDao_Impl;
+import com.forge.data.local.dao.WorkoutTemplateDao;
+import com.forge.data.local.dao.WorkoutTemplateDao_Impl;
 import java.lang.Class;
 import java.lang.Override;
 import java.lang.String;
@@ -36,10 +48,22 @@ public final class ForgeDatabase_Impl extends ForgeDatabase {
 
   private volatile WorkoutDao _workoutDao;
 
+  private volatile UserProfileDao _userProfileDao;
+
+  private volatile TrainingScheduleDao _trainingScheduleDao;
+
+  private volatile WorkoutTemplateDao _workoutTemplateDao;
+
+  private volatile DailyActivityDao _dailyActivityDao;
+
+  private volatile TransformationDao _transformationDao;
+
+  private volatile AppSettingsDao _appSettingsDao;
+
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(4) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(6) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `exercises` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `canonical_name` TEXT NOT NULL, `movement_pattern` TEXT NOT NULL, `mechanic` TEXT NOT NULL, `force_type` TEXT NOT NULL, `experience_level` TEXT NOT NULL, `instructions` TEXT NOT NULL, `form_cues` TEXT NOT NULL, `common_mistakes` TEXT NOT NULL, `youtube_video_id` TEXT, `is_custom` INTEGER NOT NULL, `source` TEXT NOT NULL, `source_id` TEXT, `source_category` TEXT, `source_force` TEXT, `source_level` TEXT, `source_mechanic` TEXT, `source_equipment` TEXT, `forge_movement_pattern` TEXT NOT NULL, `forge_exercise_family_id` TEXT, `search_tokens` TEXT NOT NULL, `license` TEXT NOT NULL, `is_popular` INTEGER NOT NULL, `popularity_rank` INTEGER NOT NULL, `is_favorite` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))");
@@ -76,8 +100,17 @@ public final class ForgeDatabase_Impl extends ForgeDatabase {
         db.execSQL("CREATE TABLE IF NOT EXISTS `user_nutrition_profile` (`id` TEXT NOT NULL, `maintenance_calories` INTEGER NOT NULL, `is_maintenance_manual` INTEGER NOT NULL, `goal` TEXT NOT NULL, `target_calories` INTEGER NOT NULL, `protein_grams` INTEGER NOT NULL, `fat_grams` INTEGER NOT NULL, `carbs_grams` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `weight_logs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `weight_kg` REAL NOT NULL, `logged_date` TEXT NOT NULL, `created_at` INTEGER NOT NULL)");
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_weight_logs_logged_date` ON `weight_logs` (`logged_date`)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `user_profile` (`id` INTEGER NOT NULL, `name` TEXT NOT NULL, `photo_uri` TEXT, `goal` TEXT NOT NULL, `experience` TEXT NOT NULL, `days_per_week` INTEGER NOT NULL, `session_duration_min` INTEGER NOT NULL, `equipment` TEXT NOT NULL, `height_cm` REAL NOT NULL, `weight_kg` REAL NOT NULL, `age` INTEGER, `sex` TEXT, `maintenance_calories` INTEGER NOT NULL, `nutrition_goal` TEXT NOT NULL, `target_calories` INTEGER NOT NULL, `target_protein_g` INTEGER NOT NULL, `target_carbs_g` INTEGER NOT NULL, `target_fat_g` INTEGER NOT NULL, `transformation_start_date` INTEGER NOT NULL, `photo_password_hash` TEXT, `photo_password_salt` TEXT, `is_initialized` INTEGER NOT NULL, `initialization_step` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `training_schedule` (`day_of_week` INTEGER NOT NULL, `is_training_day` INTEGER NOT NULL, `focus` TEXT NOT NULL, `template_id` TEXT, `target_duration_min` INTEGER NOT NULL, PRIMARY KEY(`day_of_week`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `workout_templates` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `focus` TEXT NOT NULL, `version` INTEGER NOT NULL, `target_muscles` TEXT NOT NULL, `estimated_duration_min` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `template_exercises` (`id` TEXT NOT NULL, `template_id` TEXT NOT NULL, `exercise_id` TEXT NOT NULL, `order_index` INTEGER NOT NULL, `target_sets` INTEGER NOT NULL, `target_reps_min` INTEGER NOT NULL, `target_reps_max` INTEGER NOT NULL, `target_rir` INTEGER NOT NULL, `target_weight_kg` REAL, `rest_seconds` INTEGER NOT NULL, `is_warmup` INTEGER NOT NULL, `is_drop_set` INTEGER NOT NULL, `notes` TEXT, PRIMARY KEY(`id`), FOREIGN KEY(`template_id`) REFERENCES `workout_templates`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`exercise_id`) REFERENCES `exercises`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_template_exercises_template_id` ON `template_exercises` (`template_id`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_template_exercises_exercise_id` ON `template_exercises` (`exercise_id`)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `daily_activity` (`date` TEXT NOT NULL, `steps` INTEGER NOT NULL, `active_calories` INTEGER NOT NULL, `total_calories` INTEGER NOT NULL, `distance_meters` REAL NOT NULL, `is_calories_measured` INTEGER NOT NULL, `has_health_connect_sync` INTEGER NOT NULL, `last_sync_timestamp` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`date`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `transformation_checkins` (`id` TEXT NOT NULL, `week_number` INTEGER NOT NULL, `date` TEXT NOT NULL, `front_encrypted_path` TEXT, `side_encrypted_path` TEXT, `back_encrypted_path` TEXT, `weight_kg` REAL, `notes` TEXT, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `app_settings` (`id` INTEGER NOT NULL, `reduce_motion` INTEGER NOT NULL, `particles_enabled` INTEGER NOT NULL, `haptics_enabled` INTEGER NOT NULL, `health_connect_enabled` INTEGER NOT NULL, `auto_lock_vault_on_background` INTEGER NOT NULL, `notif_workout_reminders` INTEGER NOT NULL, `notif_streak_reminders` INTEGER NOT NULL, `notif_motivation` INTEGER NOT NULL, `notif_pre_workout_alerts` INTEGER NOT NULL, `notif_post_workout_congrats` INTEGER NOT NULL, `notif_nutrition_reminders` INTEGER NOT NULL, `notif_hydration_reminders` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '967d9eb0400a0dd8a74575afb906640c')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2c17c11b0afd5d73be84edc283ef1ff6')");
       }
 
       @Override
@@ -98,6 +131,13 @@ public final class ForgeDatabase_Impl extends ForgeDatabase {
         db.execSQL("DROP TABLE IF EXISTS `exercise_personal_records`");
         db.execSQL("DROP TABLE IF EXISTS `user_nutrition_profile`");
         db.execSQL("DROP TABLE IF EXISTS `weight_logs`");
+        db.execSQL("DROP TABLE IF EXISTS `user_profile`");
+        db.execSQL("DROP TABLE IF EXISTS `training_schedule`");
+        db.execSQL("DROP TABLE IF EXISTS `workout_templates`");
+        db.execSQL("DROP TABLE IF EXISTS `template_exercises`");
+        db.execSQL("DROP TABLE IF EXISTS `daily_activity`");
+        db.execSQL("DROP TABLE IF EXISTS `transformation_checkins`");
+        db.execSQL("DROP TABLE IF EXISTS `app_settings`");
         final List<? extends RoomDatabase.Callback> _callbacks = mCallbacks;
         if (_callbacks != null) {
           for (RoomDatabase.Callback _callback : _callbacks) {
@@ -443,9 +483,164 @@ public final class ForgeDatabase_Impl extends ForgeDatabase {
                   + " Expected:\n" + _infoWeightLogs + "\n"
                   + " Found:\n" + _existingWeightLogs);
         }
+        final HashMap<String, TableInfo.Column> _columnsUserProfile = new HashMap<String, TableInfo.Column>(24);
+        _columnsUserProfile.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("name", new TableInfo.Column("name", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("photo_uri", new TableInfo.Column("photo_uri", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("goal", new TableInfo.Column("goal", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("experience", new TableInfo.Column("experience", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("days_per_week", new TableInfo.Column("days_per_week", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("session_duration_min", new TableInfo.Column("session_duration_min", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("equipment", new TableInfo.Column("equipment", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("height_cm", new TableInfo.Column("height_cm", "REAL", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("weight_kg", new TableInfo.Column("weight_kg", "REAL", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("age", new TableInfo.Column("age", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("sex", new TableInfo.Column("sex", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("maintenance_calories", new TableInfo.Column("maintenance_calories", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("nutrition_goal", new TableInfo.Column("nutrition_goal", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("target_calories", new TableInfo.Column("target_calories", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("target_protein_g", new TableInfo.Column("target_protein_g", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("target_carbs_g", new TableInfo.Column("target_carbs_g", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("target_fat_g", new TableInfo.Column("target_fat_g", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("transformation_start_date", new TableInfo.Column("transformation_start_date", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("photo_password_hash", new TableInfo.Column("photo_password_hash", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("photo_password_salt", new TableInfo.Column("photo_password_salt", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("is_initialized", new TableInfo.Column("is_initialized", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("initialization_step", new TableInfo.Column("initialization_step", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsUserProfile.put("updated_at", new TableInfo.Column("updated_at", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysUserProfile = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesUserProfile = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoUserProfile = new TableInfo("user_profile", _columnsUserProfile, _foreignKeysUserProfile, _indicesUserProfile);
+        final TableInfo _existingUserProfile = TableInfo.read(db, "user_profile");
+        if (!_infoUserProfile.equals(_existingUserProfile)) {
+          return new RoomOpenHelper.ValidationResult(false, "user_profile(com.forge.data.local.entity.UserProfileEntity).\n"
+                  + " Expected:\n" + _infoUserProfile + "\n"
+                  + " Found:\n" + _existingUserProfile);
+        }
+        final HashMap<String, TableInfo.Column> _columnsTrainingSchedule = new HashMap<String, TableInfo.Column>(5);
+        _columnsTrainingSchedule.put("day_of_week", new TableInfo.Column("day_of_week", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTrainingSchedule.put("is_training_day", new TableInfo.Column("is_training_day", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTrainingSchedule.put("focus", new TableInfo.Column("focus", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTrainingSchedule.put("template_id", new TableInfo.Column("template_id", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTrainingSchedule.put("target_duration_min", new TableInfo.Column("target_duration_min", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysTrainingSchedule = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesTrainingSchedule = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoTrainingSchedule = new TableInfo("training_schedule", _columnsTrainingSchedule, _foreignKeysTrainingSchedule, _indicesTrainingSchedule);
+        final TableInfo _existingTrainingSchedule = TableInfo.read(db, "training_schedule");
+        if (!_infoTrainingSchedule.equals(_existingTrainingSchedule)) {
+          return new RoomOpenHelper.ValidationResult(false, "training_schedule(com.forge.data.local.entity.TrainingScheduleEntity).\n"
+                  + " Expected:\n" + _infoTrainingSchedule + "\n"
+                  + " Found:\n" + _existingTrainingSchedule);
+        }
+        final HashMap<String, TableInfo.Column> _columnsWorkoutTemplates = new HashMap<String, TableInfo.Column>(7);
+        _columnsWorkoutTemplates.put("id", new TableInfo.Column("id", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWorkoutTemplates.put("name", new TableInfo.Column("name", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWorkoutTemplates.put("focus", new TableInfo.Column("focus", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWorkoutTemplates.put("version", new TableInfo.Column("version", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWorkoutTemplates.put("target_muscles", new TableInfo.Column("target_muscles", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWorkoutTemplates.put("estimated_duration_min", new TableInfo.Column("estimated_duration_min", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsWorkoutTemplates.put("created_at", new TableInfo.Column("created_at", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysWorkoutTemplates = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesWorkoutTemplates = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoWorkoutTemplates = new TableInfo("workout_templates", _columnsWorkoutTemplates, _foreignKeysWorkoutTemplates, _indicesWorkoutTemplates);
+        final TableInfo _existingWorkoutTemplates = TableInfo.read(db, "workout_templates");
+        if (!_infoWorkoutTemplates.equals(_existingWorkoutTemplates)) {
+          return new RoomOpenHelper.ValidationResult(false, "workout_templates(com.forge.data.local.entity.WorkoutTemplateEntity).\n"
+                  + " Expected:\n" + _infoWorkoutTemplates + "\n"
+                  + " Found:\n" + _existingWorkoutTemplates);
+        }
+        final HashMap<String, TableInfo.Column> _columnsTemplateExercises = new HashMap<String, TableInfo.Column>(13);
+        _columnsTemplateExercises.put("id", new TableInfo.Column("id", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("template_id", new TableInfo.Column("template_id", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("exercise_id", new TableInfo.Column("exercise_id", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("order_index", new TableInfo.Column("order_index", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("target_sets", new TableInfo.Column("target_sets", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("target_reps_min", new TableInfo.Column("target_reps_min", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("target_reps_max", new TableInfo.Column("target_reps_max", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("target_rir", new TableInfo.Column("target_rir", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("target_weight_kg", new TableInfo.Column("target_weight_kg", "REAL", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("rest_seconds", new TableInfo.Column("rest_seconds", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("is_warmup", new TableInfo.Column("is_warmup", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("is_drop_set", new TableInfo.Column("is_drop_set", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTemplateExercises.put("notes", new TableInfo.Column("notes", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysTemplateExercises = new HashSet<TableInfo.ForeignKey>(2);
+        _foreignKeysTemplateExercises.add(new TableInfo.ForeignKey("workout_templates", "CASCADE", "NO ACTION", Arrays.asList("template_id"), Arrays.asList("id")));
+        _foreignKeysTemplateExercises.add(new TableInfo.ForeignKey("exercises", "CASCADE", "NO ACTION", Arrays.asList("exercise_id"), Arrays.asList("id")));
+        final HashSet<TableInfo.Index> _indicesTemplateExercises = new HashSet<TableInfo.Index>(2);
+        _indicesTemplateExercises.add(new TableInfo.Index("index_template_exercises_template_id", false, Arrays.asList("template_id"), Arrays.asList("ASC")));
+        _indicesTemplateExercises.add(new TableInfo.Index("index_template_exercises_exercise_id", false, Arrays.asList("exercise_id"), Arrays.asList("ASC")));
+        final TableInfo _infoTemplateExercises = new TableInfo("template_exercises", _columnsTemplateExercises, _foreignKeysTemplateExercises, _indicesTemplateExercises);
+        final TableInfo _existingTemplateExercises = TableInfo.read(db, "template_exercises");
+        if (!_infoTemplateExercises.equals(_existingTemplateExercises)) {
+          return new RoomOpenHelper.ValidationResult(false, "template_exercises(com.forge.data.local.entity.TemplateExerciseEntity).\n"
+                  + " Expected:\n" + _infoTemplateExercises + "\n"
+                  + " Found:\n" + _existingTemplateExercises);
+        }
+        final HashMap<String, TableInfo.Column> _columnsDailyActivity = new HashMap<String, TableInfo.Column>(9);
+        _columnsDailyActivity.put("date", new TableInfo.Column("date", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsDailyActivity.put("steps", new TableInfo.Column("steps", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsDailyActivity.put("active_calories", new TableInfo.Column("active_calories", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsDailyActivity.put("total_calories", new TableInfo.Column("total_calories", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsDailyActivity.put("distance_meters", new TableInfo.Column("distance_meters", "REAL", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsDailyActivity.put("is_calories_measured", new TableInfo.Column("is_calories_measured", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsDailyActivity.put("has_health_connect_sync", new TableInfo.Column("has_health_connect_sync", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsDailyActivity.put("last_sync_timestamp", new TableInfo.Column("last_sync_timestamp", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsDailyActivity.put("updated_at", new TableInfo.Column("updated_at", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysDailyActivity = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesDailyActivity = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoDailyActivity = new TableInfo("daily_activity", _columnsDailyActivity, _foreignKeysDailyActivity, _indicesDailyActivity);
+        final TableInfo _existingDailyActivity = TableInfo.read(db, "daily_activity");
+        if (!_infoDailyActivity.equals(_existingDailyActivity)) {
+          return new RoomOpenHelper.ValidationResult(false, "daily_activity(com.forge.data.local.entity.DailyActivityEntity).\n"
+                  + " Expected:\n" + _infoDailyActivity + "\n"
+                  + " Found:\n" + _existingDailyActivity);
+        }
+        final HashMap<String, TableInfo.Column> _columnsTransformationCheckins = new HashMap<String, TableInfo.Column>(9);
+        _columnsTransformationCheckins.put("id", new TableInfo.Column("id", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTransformationCheckins.put("week_number", new TableInfo.Column("week_number", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTransformationCheckins.put("date", new TableInfo.Column("date", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTransformationCheckins.put("front_encrypted_path", new TableInfo.Column("front_encrypted_path", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTransformationCheckins.put("side_encrypted_path", new TableInfo.Column("side_encrypted_path", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTransformationCheckins.put("back_encrypted_path", new TableInfo.Column("back_encrypted_path", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTransformationCheckins.put("weight_kg", new TableInfo.Column("weight_kg", "REAL", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTransformationCheckins.put("notes", new TableInfo.Column("notes", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsTransformationCheckins.put("created_at", new TableInfo.Column("created_at", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysTransformationCheckins = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesTransformationCheckins = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoTransformationCheckins = new TableInfo("transformation_checkins", _columnsTransformationCheckins, _foreignKeysTransformationCheckins, _indicesTransformationCheckins);
+        final TableInfo _existingTransformationCheckins = TableInfo.read(db, "transformation_checkins");
+        if (!_infoTransformationCheckins.equals(_existingTransformationCheckins)) {
+          return new RoomOpenHelper.ValidationResult(false, "transformation_checkins(com.forge.data.local.entity.TransformationCheckInEntity).\n"
+                  + " Expected:\n" + _infoTransformationCheckins + "\n"
+                  + " Found:\n" + _existingTransformationCheckins);
+        }
+        final HashMap<String, TableInfo.Column> _columnsAppSettings = new HashMap<String, TableInfo.Column>(14);
+        _columnsAppSettings.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("reduce_motion", new TableInfo.Column("reduce_motion", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("particles_enabled", new TableInfo.Column("particles_enabled", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("haptics_enabled", new TableInfo.Column("haptics_enabled", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("health_connect_enabled", new TableInfo.Column("health_connect_enabled", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("auto_lock_vault_on_background", new TableInfo.Column("auto_lock_vault_on_background", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("notif_workout_reminders", new TableInfo.Column("notif_workout_reminders", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("notif_streak_reminders", new TableInfo.Column("notif_streak_reminders", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("notif_motivation", new TableInfo.Column("notif_motivation", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("notif_pre_workout_alerts", new TableInfo.Column("notif_pre_workout_alerts", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("notif_post_workout_congrats", new TableInfo.Column("notif_post_workout_congrats", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("notif_nutrition_reminders", new TableInfo.Column("notif_nutrition_reminders", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("notif_hydration_reminders", new TableInfo.Column("notif_hydration_reminders", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("updated_at", new TableInfo.Column("updated_at", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysAppSettings = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesAppSettings = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoAppSettings = new TableInfo("app_settings", _columnsAppSettings, _foreignKeysAppSettings, _indicesAppSettings);
+        final TableInfo _existingAppSettings = TableInfo.read(db, "app_settings");
+        if (!_infoAppSettings.equals(_existingAppSettings)) {
+          return new RoomOpenHelper.ValidationResult(false, "app_settings(com.forge.data.local.entity.AppSettingsEntity).\n"
+                  + " Expected:\n" + _infoAppSettings + "\n"
+                  + " Found:\n" + _existingAppSettings);
+        }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "967d9eb0400a0dd8a74575afb906640c", "545b65c9992dd31a5a959913a6156aa5");
+    }, "2c17c11b0afd5d73be84edc283ef1ff6", "c968a2dd715dcff1687e04650ceb2b2d");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
@@ -457,7 +652,7 @@ public final class ForgeDatabase_Impl extends ForgeDatabase {
     final HashMap<String, String> _shadowTablesMap = new HashMap<String, String>(1);
     _shadowTablesMap.put("exercises_fts", "exercises");
     final HashMap<String, Set<String>> _viewTables = new HashMap<String, Set<String>>(0);
-    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "exercises","exercises_fts","exercise_aliases","muscles","exercise_muscles","equipment","exercise_equipment","exercise_attributes","exercise_families","exercise_family_members","workout_sessions","workout_sets","exercise_progression_records","exercise_personal_records","user_nutrition_profile","weight_logs");
+    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "exercises","exercises_fts","exercise_aliases","muscles","exercise_muscles","equipment","exercise_equipment","exercise_attributes","exercise_families","exercise_family_members","workout_sessions","workout_sets","exercise_progression_records","exercise_personal_records","user_nutrition_profile","weight_logs","user_profile","training_schedule","workout_templates","template_exercises","daily_activity","transformation_checkins","app_settings");
   }
 
   @Override
@@ -489,6 +684,13 @@ public final class ForgeDatabase_Impl extends ForgeDatabase {
       _db.execSQL("DELETE FROM `exercise_personal_records`");
       _db.execSQL("DELETE FROM `user_nutrition_profile`");
       _db.execSQL("DELETE FROM `weight_logs`");
+      _db.execSQL("DELETE FROM `user_profile`");
+      _db.execSQL("DELETE FROM `training_schedule`");
+      _db.execSQL("DELETE FROM `workout_templates`");
+      _db.execSQL("DELETE FROM `template_exercises`");
+      _db.execSQL("DELETE FROM `daily_activity`");
+      _db.execSQL("DELETE FROM `transformation_checkins`");
+      _db.execSQL("DELETE FROM `app_settings`");
       super.setTransactionSuccessful();
     } finally {
       super.endTransaction();
@@ -508,6 +710,12 @@ public final class ForgeDatabase_Impl extends ForgeDatabase {
     final HashMap<Class<?>, List<Class<?>>> _typeConvertersMap = new HashMap<Class<?>, List<Class<?>>>();
     _typeConvertersMap.put(ExerciseDao.class, ExerciseDao_Impl.getRequiredConverters());
     _typeConvertersMap.put(WorkoutDao.class, WorkoutDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(UserProfileDao.class, UserProfileDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(TrainingScheduleDao.class, TrainingScheduleDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(WorkoutTemplateDao.class, WorkoutTemplateDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(DailyActivityDao.class, DailyActivityDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(TransformationDao.class, TransformationDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(AppSettingsDao.class, AppSettingsDao_Impl.getRequiredConverters());
     return _typeConvertersMap;
   }
 
@@ -550,6 +758,90 @@ public final class ForgeDatabase_Impl extends ForgeDatabase {
           _workoutDao = new WorkoutDao_Impl(this);
         }
         return _workoutDao;
+      }
+    }
+  }
+
+  @Override
+  public UserProfileDao userProfileDao() {
+    if (_userProfileDao != null) {
+      return _userProfileDao;
+    } else {
+      synchronized(this) {
+        if(_userProfileDao == null) {
+          _userProfileDao = new UserProfileDao_Impl(this);
+        }
+        return _userProfileDao;
+      }
+    }
+  }
+
+  @Override
+  public TrainingScheduleDao trainingScheduleDao() {
+    if (_trainingScheduleDao != null) {
+      return _trainingScheduleDao;
+    } else {
+      synchronized(this) {
+        if(_trainingScheduleDao == null) {
+          _trainingScheduleDao = new TrainingScheduleDao_Impl(this);
+        }
+        return _trainingScheduleDao;
+      }
+    }
+  }
+
+  @Override
+  public WorkoutTemplateDao workoutTemplateDao() {
+    if (_workoutTemplateDao != null) {
+      return _workoutTemplateDao;
+    } else {
+      synchronized(this) {
+        if(_workoutTemplateDao == null) {
+          _workoutTemplateDao = new WorkoutTemplateDao_Impl(this);
+        }
+        return _workoutTemplateDao;
+      }
+    }
+  }
+
+  @Override
+  public DailyActivityDao dailyActivityDao() {
+    if (_dailyActivityDao != null) {
+      return _dailyActivityDao;
+    } else {
+      synchronized(this) {
+        if(_dailyActivityDao == null) {
+          _dailyActivityDao = new DailyActivityDao_Impl(this);
+        }
+        return _dailyActivityDao;
+      }
+    }
+  }
+
+  @Override
+  public TransformationDao transformationDao() {
+    if (_transformationDao != null) {
+      return _transformationDao;
+    } else {
+      synchronized(this) {
+        if(_transformationDao == null) {
+          _transformationDao = new TransformationDao_Impl(this);
+        }
+        return _transformationDao;
+      }
+    }
+  }
+
+  @Override
+  public AppSettingsDao appSettingsDao() {
+    if (_appSettingsDao != null) {
+      return _appSettingsDao;
+    } else {
+      synchronized(this) {
+        if(_appSettingsDao == null) {
+          _appSettingsDao = new AppSettingsDao_Impl(this);
+        }
+        return _appSettingsDao;
       }
     }
   }

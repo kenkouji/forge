@@ -25,6 +25,10 @@ class DatabaseMigrationTest {
         assertThat(MIGRATION_2_3.endVersion).isEqualTo(3)
         assertThat(MIGRATION_3_4.startVersion).isEqualTo(3)
         assertThat(MIGRATION_3_4.endVersion).isEqualTo(4)
+        assertThat(MIGRATION_4_5.startVersion).isEqualTo(4)
+        assertThat(MIGRATION_4_5.endVersion).isEqualTo(5)
+        assertThat(MIGRATION_5_6.startVersion).isEqualTo(5)
+        assertThat(MIGRATION_5_6.endVersion).isEqualTo(6)
     }
 
     @Test
@@ -36,7 +40,7 @@ class DatabaseMigrationTest {
 
         assertThat(db.isOpen).isFalse()
         val version = db.openHelper.readableDatabase.version
-        assertThat(version).isEqualTo(4)
+        assertThat(version).isEqualTo(6)
         db.close()
     }
 
@@ -319,4 +323,119 @@ class DatabaseMigrationTest {
 
         db.close()
     }
+
+    @Test
+    fun migration_4_to_5_createsUserProfileWithBodyTelemetry_andAllEntities() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val sqliteHelper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("test_v4_to_v5_migration.db")
+                .callback(object : SupportSQLiteOpenHelper.Callback(4) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        // Minimal v4 schema needed before migrating to v5
+                        db.execSQL("CREATE TABLE IF NOT EXISTS workout_sessions (id TEXT PRIMARY KEY NOT NULL, status TEXT NOT NULL, startTime INTEGER NOT NULL, durationSeconds INTEGER NOT NULL, totalVolumeKg REAL NOT NULL, name TEXT NOT NULL)")
+                        db.execSQL("CREATE TABLE IF NOT EXISTS exercises (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL)")
+                    }
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+                })
+                .build()
+        )
+
+        val db = sqliteHelper.writableDatabase
+        MIGRATION_4_5.migrate(db)
+
+        // Verify user_profile columns including body telemetry
+        val profileCursor = db.query("PRAGMA table_info(user_profile)")
+        val columns = mutableSetOf<String>()
+        while (profileCursor.moveToNext()) {
+            val nameIdx = profileCursor.getColumnIndex("name")
+            if (nameIdx >= 0) columns.add(profileCursor.getString(nameIdx))
+        }
+        profileCursor.close()
+
+        assertThat(columns).contains("height_cm")
+        assertThat(columns).contains("weight_kg")
+        assertThat(columns).contains("age")
+        assertThat(columns).contains("sex")
+        assertThat(columns).contains("photo_password_hash")
+        assertThat(columns).contains("is_initialized")
+
+        // Verify other tables created
+        val tablesCursor = db.query("SELECT name FROM sqlite_master WHERE type='table'")
+        val tables = mutableSetOf<String>()
+        while (tablesCursor.moveToNext()) {
+            tables.add(tablesCursor.getString(0))
+        }
+        tablesCursor.close()
+
+        assertThat(tables).contains("training_schedule")
+        assertThat(tables).contains("workout_templates")
+        assertThat(tables).contains("template_exercises")
+        assertThat(tables).contains("daily_activity")
+        assertThat(tables).contains("transformation_checkins")
+        assertThat(tables).contains("app_settings")
+
+        db.close()
+    }
+
+    @Test
+    fun migration_5_to_6_addsMissingBodyTelemetryColumnsToUserProfile() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val sqliteHelper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("test_v5_to_v6_migration.db")
+                .callback(object : SupportSQLiteOpenHelper.Callback(5) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        // v5 user_profile without height_cm, weight_kg, age, sex
+                        db.execSQL(
+                            """
+                            CREATE TABLE IF NOT EXISTS user_profile (
+                                id INTEGER PRIMARY KEY NOT NULL,
+                                name TEXT NOT NULL,
+                                photo_uri TEXT,
+                                goal TEXT NOT NULL,
+                                experience TEXT NOT NULL,
+                                days_per_week INTEGER NOT NULL,
+                                session_duration_min INTEGER NOT NULL,
+                                equipment TEXT NOT NULL,
+                                maintenance_calories INTEGER NOT NULL,
+                                nutrition_goal TEXT NOT NULL,
+                                target_calories INTEGER NOT NULL,
+                                target_protein_g INTEGER NOT NULL,
+                                target_carbs_g INTEGER NOT NULL,
+                                target_fat_g INTEGER NOT NULL,
+                                transformation_start_date INTEGER NOT NULL,
+                                photo_password_hash TEXT,
+                                photo_password_salt TEXT,
+                                is_initialized INTEGER NOT NULL,
+                                initialization_step INTEGER NOT NULL,
+                                updated_at INTEGER NOT NULL
+                            )
+                            """.trimIndent()
+                        )
+                    }
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+                })
+                .build()
+        )
+
+        val db = sqliteHelper.writableDatabase
+        MIGRATION_5_6.migrate(db)
+
+        val profileCursor = db.query("PRAGMA table_info(user_profile)")
+        val columns = mutableSetOf<String>()
+        while (profileCursor.moveToNext()) {
+            val nameIdx = profileCursor.getColumnIndex("name")
+            if (nameIdx >= 0) columns.add(profileCursor.getString(nameIdx))
+        }
+        profileCursor.close()
+
+        assertThat(columns).contains("height_cm")
+        assertThat(columns).contains("weight_kg")
+        assertThat(columns).contains("age")
+        assertThat(columns).contains("sex")
+
+        db.close()
+    }
 }
+
