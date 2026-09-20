@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.forge.data.local.DatabaseMigrationTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-09-20T11:56:58" hostname="GAasishs-MacBook-Pro.local" time="24.393">
+  <properties/>
+  <testcase name="migration_1_to_2_executesSqlWithoutError" classname="com.forge.data.local.DatabaseMigrationTest" time="23.27"/>
+  <testcase name="database_buildsWithAllMigrationsConfigured" classname="com.forge.data.local.DatabaseMigrationTest" time="0.371"/>
+  <testcase name="database_allMigrations_arrayIsValid" classname="com.forge.data.local.DatabaseMigrationTest" time="0.237"/>
+  <testcase name="migration_2_to_3_preservesWorkoutData_andCreatesRelationalSchema" classname="com.forge.data.local.DatabaseMigrationTest" time="0.515"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
