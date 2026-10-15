@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  remoteforge-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: remoteforge-server
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-8000}:8000"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8000
+      - DATABASE_URL=sqlite:////app/data/remoteforge.db
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production-random-secret}
+      - AGENT_TOKEN=${AGENT_TOKEN:-rf_agent_secret_token_default_replace_me}
+      - INITIAL_ADMIN_USERNAME=${INITIAL_ADMIN_USERNAME:-admin}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD:-remoteforge_secure_pass}
+      - CORS_ORIGINS=*
+    volumes:
+      - remoteforge-data:/app/data
+
+volumes:
+  remoteforge-data:
+    driver: local

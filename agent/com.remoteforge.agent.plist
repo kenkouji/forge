@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.remoteforge.agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/g.aasish/mainproject/venv/bin/python3</string>
+        <string>/Users/g.aasish/mainproject/agent/remote_forge_agent/main.py</string>
+        <string>--server</string>
+        <string>ws://127.0.0.1:8090</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/g.aasish/mainproject</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/g.aasish/mainproject/agent.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/g.aasish/mainproject/agent_err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>backend:.</string>
+    </dict>
+</dict>
+</plist>

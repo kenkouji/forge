@@ -1,0 +1,45 @@
+{
+  "timestamp": "2026-10-15T08:30:40Z",
+  "tcp_handshake": {
+    "min": 0.12,
+    "med": 0.31,
+    "p95": 1.63,
+    "max": 4.16,
+    "count": 30
+  },
+  "http_fresh": {
+    "min": 43.73,
+    "med": 59.28,
+    "p95": 141.03,
+    "max": 168.95,
+    "count": 30
+  },
+  "http_reused": {
+    "min": 2.62,
+    "med": 6.16,
+    "p95": 9.68,
+    "max": 10.27,
+    "count": 30
+  },
+  "command_dispatch": {
+    "min": 222.23,
+    "med": 230.56,
+    "p95": 282.22,
+    "max": 841.32,
+    "count": 30
+  },
+  "screenshot_latency": {
+    "min": 460.08,
+    "med": 534.87,
+    "p95": 950.15,
+    "max": 950.15,
+    "count": 10
+  },
+  "screenshot_size_kb": {
+    "min": 1621.37,
+    "med": 1625.57,
+    "p95": 1625.73,
+    "max": 1625.73,
+    "count": 10
+  }
+}

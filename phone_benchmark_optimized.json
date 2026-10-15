@@ -1,0 +1,53 @@
+{
+  "label": "optimized",
+  "timestamp": "2026-10-15T08:54:40Z",
+  "ping_rtt": {
+    "min": 0,
+    "med": 0,
+    "p95": 0,
+    "max": 0,
+    "count": 0
+  },
+  "tcp_handshake": {
+    "min": 42.27,
+    "med": 48.2,
+    "p95": 104.26,
+    "max": 110.52,
+    "count": 30
+  },
+  "http_health_fresh": {
+    "min": 89.98,
+    "med": 97.21,
+    "p95": 155.94,
+    "max": 160.68,
+    "count": 30
+  },
+  "http_health_reused": {
+    "min": 43.15,
+    "med": 50.09,
+    "p95": 63.76,
+    "max": 68.03,
+    "count": 24
+  },
+  "command_dispatch": {
+    "min": 104.12,
+    "med": 109.89,
+    "p95": 139.0,
+    "max": 177.7,
+    "count": 30
+  },
+  "screenshot_latency": {
+    "min": 813.07,
+    "med": 858.99,
+    "p95": 1132.73,
+    "max": 1132.73,
+    "count": 10
+  },
+  "screenshot_size_kb": {
+    "min": 154.91,
+    "med": 154.95,
+    "p95": 155.0,
+    "max": 155.0,
+    "count": 10
+  }
+}
