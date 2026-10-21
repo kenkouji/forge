@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.database.session import SessionLocal
 from app.models.entities import Device, AuditLog
 
+from starlette.websockets import WebSocketState
+
 logger = logging.getLogger("remoteforge.websocket")
 
 class ConnectionManager:
@@ -22,7 +24,8 @@ class ConnectionManager:
         self.pending_commands: Dict[str, asyncio.Future] = {}
 
     async def connect_client(self, websocket: WebSocket):
-        await websocket.accept()
+        if websocket.client_state != WebSocketState.CONNECTED:
+            await websocket.accept()
         self.client_connections.add(websocket)
         logger.info(f"Client connected. Total clients: {len(self.client_connections)}")
 

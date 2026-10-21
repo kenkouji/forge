@@ -143,9 +143,9 @@ fun ScreenshotViewerScreen(
                 Text("Failed to render screenshot image.", color = TextPureWhite, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 Button(
                     onClick = onBack,
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentCyan.copy(alpha = 0.2f))
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet.copy(alpha = 0.2f))
                 ) {
-                    Text("Return", color = AccentCyan)
+                    Text("Return", color = RoyalViolet)
                 }
             }
         } else {
@@ -233,7 +233,7 @@ fun ScreenshotViewerScreen(
                         val cropW = right - left
                         val cropH = bottom - top
                         drawRect(
-                            color = AccentCyan,
+                            color = RoyalViolet,
                             topLeft = Offset(left, top),
                             size = Size(cropW, cropH),
                             style = Stroke(width = 2.5.dp.toPx())
@@ -253,7 +253,7 @@ fun ScreenshotViewerScreen(
                         // 4. Corner bracket accents for tactile look
                         val bracketLen = 22.dp.toPx()
                         val bracketStroke = 4.dp.toPx()
-                        val bracketColor = AccentCyan
+                        val bracketColor = RoyalViolet
 
                         // Top-left
                         drawLine(bracketColor, Offset(left - 2, top), Offset(left + bracketLen, top), bracketStroke)
@@ -310,7 +310,7 @@ fun ScreenshotViewerScreen(
                         Text(
                             text = if (isCropMode) "Select aspect ratio and crop area" else "$dimensionsText • $fileSizeText",
                             style = MaterialTheme.typography.labelSmall,
-                            color = AccentCyan
+                            color = RoyalViolet
                         )
                     }
                 }
@@ -331,8 +331,8 @@ fun ScreenshotViewerScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(Icons.Rounded.ZoomOutMap, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
-                            Text("Reset", color = AccentCyan, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Icon(Icons.Rounded.ZoomOutMap, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(14.dp))
+                            Text("Reset", color = RoyalViolet, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -368,8 +368,8 @@ fun ScreenshotViewerScreen(
                             CropAspectRatio.values().forEach { ratioPreset ->
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = if (selectedCropRatio == ratioPreset) AccentCyan.copy(alpha = 0.25f) else Color(0x22FFFFFF),
-                                    border = BorderStroke(0.5.dp, if (selectedCropRatio == ratioPreset) AccentCyan else Color(0x1AFFFFFF)),
+                                    color = if (selectedCropRatio == ratioPreset) RoyalViolet.copy(alpha = 0.25f) else Color(0x22FFFFFF),
+                                    border = BorderStroke(0.5.dp, if (selectedCropRatio == ratioPreset) RoyalViolet else Color(0x1AFFFFFF)),
                                     modifier = Modifier
                                         .padding(horizontal = 4.dp)
                                         .clickable {
@@ -401,7 +401,7 @@ fun ScreenshotViewerScreen(
                                 ) {
                                     Text(
                                         text = ratioPreset.label,
-                                        color = if (selectedCropRatio == ratioPreset) AccentCyan else TextSoftWhite,
+                                        color = if (selectedCropRatio == ratioPreset) RoyalViolet else TextSoftWhite,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -479,10 +479,10 @@ fun ScreenshotViewerScreen(
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan.copy(alpha = 0.3f)),
+                                colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet.copy(alpha = 0.3f)),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
-                                Text("Apply Crop", color = AccentCyan, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("Apply Crop", color = RoyalViolet, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -502,7 +502,7 @@ fun ScreenshotViewerScreen(
                         ViewerToolbarButton(
                             icon = Icons.Rounded.Crop,
                             label = "Crop",
-                            accentColor = AccentCyan
+                            accentColor = RoyalViolet
                         ) {
                             isCropMode = true
                             selectedCropRatio = CropAspectRatio.FREE
@@ -571,7 +571,7 @@ fun ScreenshotViewerScreen(
                         .padding(bottom = 96.dp, start = 24.dp, end = 24.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xF0181A24))
-                        .border(1.dp, AccentCyan.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .border(1.dp, RoyalViolet.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
@@ -583,7 +583,7 @@ fun ScreenshotViewerScreen(
                         savedUri?.let { uri ->
                             Text(
                                 text = "OPEN",
-                                color = AccentCyan,
+                                color = RoyalViolet,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier

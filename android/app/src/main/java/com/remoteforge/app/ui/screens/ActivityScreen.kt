@@ -124,7 +124,7 @@ fun ActivityScreen(
                     Icon(
                         imageVector = Icons.Rounded.Refresh,
                         contentDescription = "Refresh",
-                        tint = ElectricCyan
+                        tint = RoyalViolet
                     )
                 }
             }
@@ -264,7 +264,7 @@ fun ActivityScreen(
                                     Surface(
                                         shape = RoundedCornerShape(10.dp),
                                         color = when {
-                                            isSelectedDay -> ElectricCyan.copy(alpha = 0.25f)
+                                            isSelectedDay -> RoyalViolet.copy(alpha = 0.25f)
                                             hasBugs -> RubyOffline.copy(alpha = 0.15f)
                                             else -> GlassSurfaceElevated
                                         },
@@ -272,7 +272,7 @@ fun ActivityScreen(
                                             .border(
                                                 width = 1.dp,
                                                 color = when {
-                                                    isSelectedDay -> ElectricCyan
+                                                    isSelectedDay -> RoyalViolet
                                                     hasBugs -> RubyOffline.copy(alpha = 0.5f)
                                                     else -> Color.Transparent
                                                 },
@@ -321,7 +321,7 @@ fun ActivityScreen(
                     val isSelected = selectedTimeWindow == tw
                     Surface(
                         shape = RoundedCornerShape(14.dp),
-                        color = if (isSelected) ElectricCyan.copy(alpha = 0.2f) else GlassSurfaceElevated,
+                        color = if (isSelected) RoyalViolet.copy(alpha = 0.2f) else GlassSurfaceElevated,
                         modifier = Modifier.clickable {
                             selectedTimeWindow = tw
                             selectedDayFilter = null
@@ -331,7 +331,7 @@ fun ActivityScreen(
                             text = tw.label,
                             fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) ElectricCyan else TextSecondaryDark,
+                            color = if (isSelected) RoyalViolet else TextSecondaryDark,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
@@ -348,7 +348,7 @@ fun ActivityScreen(
                 LogCategory.values().forEach { cat ->
                     val isSelected = selectedCategory == cat
                     val accent = when (cat) {
-                        LogCategory.ALL -> ElectricCyan
+                        LogCategory.ALL -> RoyalViolet
                         LogCategory.BUGS -> RubyOffline
                         LogCategory.SUCCESS -> EmeraldOnline
                     }
@@ -394,7 +394,7 @@ fun ActivityScreen(
                 Text(
                     text = "Showing day: $day",
                     fontSize = 12.sp,
-                    color = ElectricCyan,
+                    color = RoyalViolet,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
@@ -582,7 +582,7 @@ fun ActivityScreen(
                         }
                     }
                 ) {
-                    Text("Purge > 2 Days", color = ElectricCyan)
+                    Text("Purge > 2 Days", color = RoyalViolet)
                 }
             },
             containerColor = Color(0xFF0F172A),

@@ -21,13 +21,28 @@ async def agent_websocket_endpoint(
     websocket: WebSocket,
     token: Optional[str] = Query(None)
 ):
-    # Verify agent authentication token
-    if not token or token != settings.AGENT_TOKEN:
-        logger.warning("Agent connection rejected: invalid authentication token.")
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized Agent Token")
-        return
+    # Support query param auth and first-message handshake
+    if token:
+        if token != settings.AGENT_TOKEN:
+            logger.warning("Agent connection rejected: invalid authentication token.")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized Agent Token")
+            return
+        await websocket.accept()
+    else:
+        await websocket.accept()
+        import asyncio
+        try:
+            raw_init = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+            init_data = json.loads(raw_init)
+            if init_data.get("type") == "authenticate":
+                token = init_data.get("token")
+        except Exception:
+            token = None
 
-    await websocket.accept()
+        if not token or token != settings.AGENT_TOKEN:
+            logger.warning("Agent connection rejected: invalid authentication handshake.")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized Agent Token")
+            return
 
     device_id: Optional[str] = None
     try:
@@ -53,6 +68,29 @@ async def agent_websocket_endpoint(
                     "status": "authorized"
                 })
 
+                # If there is pending host sync for Privacy Shield, push it immediately
+                from app.models.entities import PrivacyShieldState
+                db = SessionLocal()
+                try:
+                    ps = db.query(PrivacyShieldState).filter(PrivacyShieldState.device_id == device_id).first()
+                    if ps:
+                        await websocket.send_json({
+                            "type": "command",
+                            "request_id": str(uuid.uuid4()),
+                            "tool": "sync_privacy_shield",
+                            "arguments": {
+                                "is_lockdown": ps.is_lockdown,
+                                "is_screen_paused": ps.is_screen_paused,
+                                "is_input_disabled": ps.is_input_disabled,
+                                "is_transfers_stopped": ps.is_transfers_stopped
+                            }
+                        })
+                        if ps.pending_host_sync:
+                            ps.pending_host_sync = False
+                            db.commit()
+                finally:
+                    db.close()
+
             elif msg_type == "heartbeat":
                 dev = data.get("device_id") or device_id
                 if dev:
@@ -63,6 +101,25 @@ async def agent_websocket_endpoint(
                 request_id = data.get("request_id")
                 if request_id:
                     ws_manager.resolve_command_result(request_id, data)
+
+            elif msg_type == "clipboard_update":
+                from app.services.clipboard_service import clipboard_service
+                item_data = data.get("item", {})
+                source = data.get("device_id") or "laptop"
+                try:
+                    saved_item = clipboard_service.add_item(
+                        content_type=item_data.get("content_type", "text"),
+                        text=item_data.get("text"),
+                        image_base64=item_data.get("image_base64"),
+                        source_device=source,
+                        preview=item_data.get("preview")
+                    )
+                    await ws_manager.broadcast_to_clients({
+                        "type": "clipboard_sync",
+                        "item": saved_item
+                    })
+                except Exception as ce:
+                    logger.warning(f"Error processing clipboard_update: {ce}")
 
             else:
                 logger.debug(f"Unhandled agent message type: {msg_type}")
@@ -80,17 +137,52 @@ async def client_websocket_endpoint(
     websocket: WebSocket,
     token: Optional[str] = Query(None)
 ):
-    # Authenticate client JWT
+    # Origin validation for browser client
+    origin = websocket.headers.get("origin")
+    if origin and settings.CORS_ORIGINS != ["*"] and origin not in settings.CORS_ORIGINS:
+        logger.warning(f"Client connection rejected: unauthorized origin {origin}")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized Origin")
+        return
+
+    # Support query param auth and first-message handshake
+    if token:
+        await websocket.accept()
+    else:
+        await websocket.accept()
+        import asyncio
+        try:
+            raw_init = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+            init_data = json.loads(raw_init)
+            if init_data.get("type") == "authenticate":
+                token = init_data.get("token")
+        except Exception:
+            token = None
+
     if not token:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
         return
+
     payload = decode_access_token(token)
     if not payload:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
         return
 
+    role = payload.get("role", "admin")
+    is_guest = (role == "guest")
+    guest_session_id = payload.get("session_id") if is_guest else None
+    guest_name = payload.get("guest_name", "Guest") if is_guest else None
     username = payload.get("sub", "unknown")
+    actor = f"guest:{guest_session_id}:{guest_name}" if is_guest else username
+
     await ws_manager.connect_client(websocket)
+
+    if is_guest:
+        await ws_manager.broadcast_to_clients({
+            "type": "guest_connected",
+            "session_id": guest_session_id,
+            "guest_name": guest_name,
+            "timestamp": time.time()
+        })
 
     try:
         while True:
@@ -112,6 +204,147 @@ async def client_websocket_endpoint(
                 tool = msg.get("tool")
                 args = msg.get("arguments", {})
                 confirmed = msg.get("confirmed", False)
+
+                if is_guest:
+                    from app.models.entities import GuestSession, PrivacyShieldState
+                    check_db = SessionLocal()
+                    try:
+                        g_sess = check_db.query(GuestSession).filter(GuestSession.id == guest_session_id).first()
+                        now_utc = datetime.datetime.now(datetime.timezone.utc)
+                        if not g_sess or g_sess.status != "APPROVED":
+                            await websocket.send_json({
+                                "type": "command_result",
+                                "request_id": req_id,
+                                "status": "FAILED",
+                                "error": "Guest session is not approved or has been revoked."
+                            })
+                            continue
+                        exp = g_sess.expires_at
+                        if exp.tzinfo is None:
+                            exp = exp.replace(tzinfo=datetime.timezone.utc)
+                        if exp < now_utc:
+                            await websocket.send_json({
+                                "type": "command_result",
+                                "request_id": req_id,
+                                "status": "FAILED",
+                                "error": "Guest session has expired."
+                            })
+                            continue
+
+                        # Default device_id from session if omitted by guest client
+                        if not device_id and g_sess.device_id:
+                            device_id = g_sess.device_id
+
+                        # Privacy Shield verification
+                        ps = check_db.query(PrivacyShieldState).filter(PrivacyShieldState.device_id == device_id).first()
+                        if ps and ps.is_lockdown:
+                            await websocket.send_json({
+                                "type": "command_result",
+                                "request_id": req_id,
+                                "status": "FAILED",
+                                "error": "Host workstation is currently in Emergency Lockdown."
+                            })
+                            continue
+
+                        # Restrict guest tools to input control and normalize aliases
+                        allowed_guest_tools = [
+                            "send_input_event", "remote_input", "mouse_click", "click",
+                            "mouse_drag", "drag", "mouse_move", "move", "mouse_down",
+                            "mouse_up", "send_keys", "key", "key_tap", "type_text",
+                            "scroll", "shortcut", "telestrator_event"
+                        ]
+                        if tool not in allowed_guest_tools:
+                            await websocket.send_json({
+                                "type": "command_result",
+                                "request_id": req_id,
+                                "status": "FAILED",
+                                "error": f"Guest permission denied: Guests cannot execute '{tool}'."
+                            })
+                            continue
+
+                        # Normalize all input aliases to controlled tool "send_input_event"
+                        if tool in ["mouse_click", "click"]:
+                            if "action" not in args: args["action"] = "click"
+                            tool = "send_input_event"
+                        elif tool in ["mouse_drag", "drag"]:
+                            if "action" not in args: args["action"] = "mouse_drag"
+                            tool = "send_input_event"
+                        elif tool in ["mouse_move", "move"]:
+                            if "action" not in args: args["action"] = "move"
+                            tool = "send_input_event"
+                        elif tool in ["mouse_down", "down"]:
+                            if "action" not in args: args["action"] = "mouse_down"
+                            tool = "send_input_event"
+                        elif tool in ["mouse_up", "up"]:
+                            if "action" not in args: args["action"] = "mouse_up"
+                            tool = "send_input_event"
+                        elif tool in ["send_keys", "type_text"]:
+                            if "action" not in args: args["action"] = "type_text"
+                            tool = "send_input_event"
+                        elif tool in ["key", "key_tap"]:
+                            if "action" not in args: args["action"] = "key"
+                            tool = "send_input_event"
+                        elif tool == "scroll":
+                            if "action" not in args: args["action"] = "scroll"
+                            tool = "send_input_event"
+                        elif tool == "shortcut":
+                            if "action" not in args: args["action"] = "shortcut"
+                            tool = "send_input_event"
+                        elif tool == "remote_input":
+                            tool = "send_input_event"
+
+                        caps = json.loads(g_sess.approved_capabilities_json) if g_sess.approved_capabilities_json else []
+                        if "input.control" not in caps:
+                            await websocket.send_json({
+                                "type": "command_result",
+                                "request_id": req_id,
+                                "status": "FAILED",
+                                "error": "Guest session does not have input.control capability."
+                            })
+                            continue
+
+                        if ps and ps.is_input_disabled:
+                            await websocket.send_json({
+                                "type": "command_result",
+                                "request_id": req_id,
+                                "status": "FAILED",
+                                "error": "Guest input is currently disabled by the owner."
+                            })
+                            continue
+                    finally:
+                        check_db.close()
+
+                    # Tag actor on arguments for agent and audit
+                    args["actor"] = actor
+
+                    # Broadcast co-control activity to owner
+                    await ws_manager.broadcast_to_clients({
+                        "type": "co_control_activity",
+                        "actor": actor,
+                        "device_id": device_id,
+                        "action": args.get("action", "input"),
+                        "timestamp": time.time()
+                    })
+
+                if tool == "telestrator_event":
+                    await ws_manager.broadcast_to_clients({
+                        "type": "telestrator_event",
+                        "actor": actor,
+                        "device_id": device_id,
+                        "action": args.get("action", "laser"),
+                        "rel_x": args.get("rel_x"),
+                        "rel_y": args.get("rel_y"),
+                        "points": args.get("points"),
+                        "color": args.get("color", "#BDA0FF"),
+                        "timestamp": time.time()
+                    })
+                    await websocket.send_json({
+                        "type": "command_result",
+                        "request_id": req_id,
+                        "status": "COMPLETED",
+                        "result": {"status": "broadcasted"}
+                    })
+                    continue
 
                 if not device_id or not tool:
                     await websocket.send_json({
@@ -203,7 +436,7 @@ async def client_websocket_endpoint(
 
                     record_audit_log(
                         db=db,
-                        actor=username,
+                        actor=actor,
                         device_id=device_id,
                         task_id=req_id,
                         action=f"EXECUTE_{tool}",
@@ -246,5 +479,20 @@ async def client_websocket_endpoint(
                     db.close()
     except WebSocketDisconnect:
         ws_manager.disconnect_client(websocket)
+        if is_guest:
+            await ws_manager.broadcast_to_clients({
+                "type": "guest_disconnected",
+                "session_id": guest_session_id,
+                "guest_name": guest_name,
+                "timestamp": time.time()
+            })
     except Exception:
         ws_manager.disconnect_client(websocket)
+        if is_guest:
+            await ws_manager.broadcast_to_clients({
+                "type": "guest_disconnected",
+                "session_id": guest_session_id,
+                "guest_name": guest_name,
+                "timestamp": time.time()
+            })
+

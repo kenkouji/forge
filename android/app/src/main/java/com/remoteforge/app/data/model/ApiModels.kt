@@ -190,6 +190,8 @@ data class FilePreviewResponse(
     val content: String? = null,
     @SerializedName("image_data_base64") val imageDataBase64: String? = null,
     @SerializedName("pdf_data_base64") val pdfDataBase64: String? = null,
+    @SerializedName("media_data_base64") val mediaDataBase64: String? = null,
+    @SerializedName("mime_type") val mimeType: String? = null,
     @SerializedName("is_truncated") val isTruncated: Boolean = false,
     val message: String? = null
 )
@@ -318,7 +320,77 @@ data class TaskItem(
     @SerializedName("completed_at") val completedAt: String? = null
 )
 
-// Automation Models
+// Automation & Workflow Models
+data class WorkflowStepItem(
+    @SerializedName("step_id") val stepId: String,
+    val name: String,
+    val type: String = "action", // action, condition, delay, approval, notification, completion
+    val tool: String? = null,
+    val arguments: Map<String, Any>? = null,
+    val condition: Map<String, Any>? = null,
+    @SerializedName("on_true_step") val onTrueStep: String? = null,
+    @SerializedName("on_false_step") val onFalseStep: String? = null,
+    @SerializedName("delay_seconds") val delaySeconds: Double = 0.0,
+    @SerializedName("timeout_seconds") val timeoutSeconds: Double = 25.0,
+    @SerializedName("retry_count") val retryCount: Int = 0,
+    @SerializedName("requires_approval") val requiresApproval: Boolean = false,
+    @SerializedName("notification_message") val notificationMessage: String? = null
+)
+
+data class WorkflowDefinitionItem(
+    val version: String = "2.0",
+    val id: String? = null,
+    val name: String,
+    val description: String = "",
+    @SerializedName("trigger_type") val triggerType: String = "manual",
+    @SerializedName("schedule_time") val scheduleTime: String? = null,
+    @SerializedName("target_device_id") val targetDeviceId: String? = null,
+    @SerializedName("max_execution_seconds") val maxExecutionSeconds: Double = 180.0,
+    val steps: List<WorkflowStepItem> = emptyList()
+)
+
+data class WorkflowDryRunStepItem(
+    @SerializedName("step_id") val stepId: String,
+    val name: String,
+    val type: String,
+    val tool: String? = null,
+    @SerializedName("risk_level") val riskLevel: String = "LOW",
+    @SerializedName("requires_approval") val requiresApproval: Boolean = false,
+    @SerializedName("simulation_note") val simulationNote: String
+)
+
+data class WorkflowDryRunResponse(
+    val valid: Boolean,
+    val name: String,
+    @SerializedName("steps_count") val stepsCount: Int,
+    @SerializedName("risk_assessment") val riskAssessment: String,
+    @SerializedName("requires_human_approval") val requiresHumanApproval: Boolean,
+    val steps: List<WorkflowDryRunStepItem> = emptyList(),
+    val error: String? = null
+)
+
+data class WorkflowExecutionStepLog(
+    @SerializedName("step_id") val stepId: String,
+    @SerializedName("step_name") val stepName: String,
+    @SerializedName("step_type") val stepType: String,
+    val tool: String? = null,
+    val status: String,
+    @SerializedName("duration_ms") val durationMs: Double = 0.0,
+    val details: String? = null
+)
+
+data class WorkflowExecutionItem(
+    @SerializedName("execution_id") val executionId: String,
+    @SerializedName("workflow_id") val workflowId: String,
+    @SerializedName("workflow_name") val workflowName: String,
+    @SerializedName("target_device_id") val targetDeviceId: String,
+    val status: String,
+    @SerializedName("started_at") val startedAt: String,
+    @SerializedName("completed_at") val completedAt: String? = null,
+    @SerializedName("step_logs") val stepLogs: List<WorkflowExecutionStepLog> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
 data class AutomationItem(
     val id: String,
     val name: String,
@@ -334,7 +406,8 @@ data class AutomationItem(
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("action_arguments_json") val actionArgumentsJson: String? = null,
     @SerializedName("scheduled_epoch") val scheduledEpoch: Double? = null,
-    @SerializedName("is_one_shot") val isOneShot: Boolean = false
+    @SerializedName("is_one_shot") val isOneShot: Boolean = false,
+    @SerializedName("workflow_definition_json") val workflowDefinitionJson: String? = null
 )
 
 data class AutomationCreateRequest(
@@ -347,7 +420,8 @@ data class AutomationCreateRequest(
     val status: String = "ACTIVE",
     @SerializedName("action_arguments_json") val actionArgumentsJson: String? = null,
     @SerializedName("scheduled_epoch") val scheduledEpoch: Double? = null,
-    @SerializedName("is_one_shot") val isOneShot: Boolean = false
+    @SerializedName("is_one_shot") val isOneShot: Boolean = false,
+    @SerializedName("workflow_definition_json") val workflowDefinitionJson: String? = null
 )
 
 data class AutomationUpdateRequest(
@@ -360,7 +434,8 @@ data class AutomationUpdateRequest(
     val status: String? = null,
     @SerializedName("action_arguments_json") val actionArgumentsJson: String? = null,
     @SerializedName("scheduled_epoch") val scheduledEpoch: Double? = null,
-    @SerializedName("is_one_shot") val isOneShot: Boolean? = null
+    @SerializedName("is_one_shot") val isOneShot: Boolean? = null,
+    @SerializedName("workflow_definition_json") val workflowDefinitionJson: String? = null
 )
 
 data class AutomationHistoryItem(
@@ -371,3 +446,179 @@ data class AutomationHistoryItem(
     val status: String,
     val details: String
 )
+
+// Low-Latency Screen Streaming Models
+data class StreamControlRequest(
+    val action: String, // start, stop, quality
+    val width: Int? = null,
+    val quality: Int? = null,
+    val fps: Int? = null
+)
+
+data class StreamStatusResponse(
+    @SerializedName("is_active") val isActive: Boolean,
+    val width: Int = 960,
+    val height: Int = 600,
+    val fps: Double = 0.0,
+    @SerializedName("latency_ms") val latencyMs: Double = 0.0,
+    val kbps: Double = 0.0
+)
+
+// Developer Workstation Models
+data class GitCommitInfo(
+    val hash: String = "",
+    val author: String = "",
+    @SerializedName("relative_time") val relativeTime: String = "",
+    val message: String = ""
+)
+
+data class GitStatusInfo(
+    @SerializedName("is_repo") val isRepo: Boolean = false,
+    val path: String = "",
+    val branch: String = "HEAD",
+    val tracking: String? = null,
+    val ahead: Int = 0,
+    val behind: Int = 0,
+    val clean: Boolean = true,
+    @SerializedName("staged_count") val stagedCount: Int = 0,
+    @SerializedName("unstaged_count") val unstagedCount: Int = 0,
+    @SerializedName("untracked_count") val untrackedCount: Int = 0,
+    val staged: List<String> = emptyList(),
+    val unstaged: List<String> = emptyList(),
+    val untracked: List<String> = emptyList(),
+    @SerializedName("latest_commit") val latestCommit: GitCommitInfo? = null,
+    val message: String? = null
+)
+
+data class GitDiffInfo(
+    val path: String = "",
+    val staged: Boolean = false,
+    @SerializedName("file_path") val filePath: String? = null,
+    val diff: String = "",
+    val truncated: Boolean = false,
+    @SerializedName("files_changed") val filesChanged: Int = 0,
+    val insertions: Int = 0,
+    val deletions: Int = 0
+)
+
+data class ProjectBuildResult(
+    val command: String = "",
+    @SerializedName("project_path") val projectPath: String = "",
+    val success: Boolean = false,
+    @SerializedName("exit_code") val exitCode: Int = 0,
+    val stdout: String = "",
+    val stderr: String = "",
+    @SerializedName("line_count") val lineCount: Int = 0,
+    @SerializedName("duration_ms") val durationMs: Double = 0.0,
+    val error: String? = null
+)
+
+data class ClipboardInfo(
+    val text: String = "",
+    val length: Int = 0,
+    val truncated: Boolean = false,
+    val status: String? = null,
+    val error: String? = null
+)
+
+// Universal Clipboard Models
+data class ClipboardItem(
+    val id: String = "",
+    @SerializedName("content_type") val contentType: String = "text",
+    @SerializedName("text_content") val textContent: String? = null,
+    @SerializedName("image_base64") val imageBase64: String? = null,
+    val preview: String = "",
+    @SerializedName("source_device") val sourceDevice: String = "phone",
+    @SerializedName("size_bytes") val sizeBytes: Long = 0L,
+    @SerializedName("created_at") val createdAt: String = ""
+)
+
+data class ClipboardSyncRequest(
+    @SerializedName("content_type") val contentType: String,
+    val text: String? = null,
+    @SerializedName("image_base64") val imageBase64: String? = null,
+    @SerializedName("source_device") val sourceDevice: String = "phone",
+    val preview: String? = null
+)
+
+data class ClipboardCopyRequest(
+    @SerializedName("device_id") val deviceId: String,
+    @SerializedName("content_type") val contentType: String,
+    val text: String? = null,
+    @SerializedName("image_base64") val imageBase64: String? = null
+)
+
+// Guest Access, Co-Control & Privacy Shield Models
+data class GuestInvitationResponse(
+    val id: String = "",
+    @SerializedName("device_id") val deviceId: String = "",
+    @SerializedName("invite_secret") val inviteSecret: String? = null,
+    @SerializedName("qr_payload") val qrPayload: String = "",
+    @SerializedName("expires_at") val expiresAt: String = "",
+    val capabilities: List<String> = emptyList(),
+    @SerializedName("is_redeemed") val isRedeemed: Boolean = false,
+    @SerializedName("is_revoked") val isRevoked: Boolean = false
+)
+
+data class GuestInvitationCreateRequest(
+    @SerializedName("device_id") val deviceId: String,
+    val capabilities: List<String> = listOf("screen.view", "input.control"),
+    @SerializedName("expires_in_minutes") val expiresInMinutes: Int = 15
+)
+
+data class GuestSessionResponse(
+    val id: String = "",
+    @SerializedName("device_id") val deviceId: String = "",
+    @SerializedName("guest_name") val guestName: String = "",
+    val status: String = "",
+    @SerializedName("control_mode") val controlMode: String = "shared-control",
+    @SerializedName("approved_capabilities") val approvedCapabilities: List<String> = emptyList(),
+    @SerializedName("expires_at") val expiresAt: String = "",
+    @SerializedName("created_at") val createdAt: String = "",
+    @SerializedName("is_active") val isActive: Boolean = true
+)
+
+data class GuestApprovalRequest(
+    @SerializedName("approve") val approve: Boolean = true,
+    @SerializedName("approved_capabilities") val approvedCapabilities: List<String> = emptyList(),
+    @SerializedName("capabilities") val capabilities: List<String> = emptyList(),
+    @SerializedName("control_mode") val controlMode: String = "shared-control",
+    @SerializedName("duration_minutes") val durationMinutes: Int = 30
+)
+
+data class PrivacyShieldResponse(
+    @SerializedName("device_id") val deviceId: String = "",
+    @SerializedName("is_lockdown") val isLockdown: Boolean = false,
+    @SerializedName("is_screen_paused") val isScreenPaused: Boolean = false,
+    @SerializedName("is_input_disabled") val isInputDisabled: Boolean = false,
+    @SerializedName("is_transfers_stopped") val isTransfersStopped: Boolean = false,
+    @SerializedName("pending_host_sync") val pendingHostSync: Boolean = false,
+    @SerializedName("active_guests_count") val activeGuestsCount: Int = 0,
+    @SerializedName("updated_at") val updatedAt: String = ""
+)
+
+data class PrivacyShieldUpdateRequest(
+    @SerializedName("is_lockdown") val isLockdown: Boolean? = null,
+    @SerializedName("is_screen_paused") val isScreenPaused: Boolean? = null,
+    @SerializedName("is_input_disabled") val isInputDisabled: Boolean? = null,
+    @SerializedName("is_transfers_stopped") val isTransfersStopped: Boolean? = null,
+    val action: String? = null
+)
+
+data class StagedFileResponse(
+    val id: String = "",
+    @SerializedName("session_id") val sessionId: String = "",
+    @SerializedName("device_id") val deviceId: String = "",
+    val filename: String = "",
+    @SerializedName("file_size") val fileSize: Long = 0L,
+    @SerializedName("sha256_hash") val sha256Hash: String = "",
+    val status: String = "",
+    @SerializedName("uploaded_at") val uploadedAt: String = "",
+    @SerializedName("promoted_to_path") val promotedToPath: String? = null
+)
+
+data class PromoteFileRequest(
+    @SerializedName("destination_dir") val destinationDir: String
+)
+
+

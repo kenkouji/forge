@@ -25,4 +25,8 @@ sealed class AppScreen {
         val deviceName: String = "MacBook Pro"
     ) : AppScreen()
     data class RemoteControl(val deviceId: String) : AppScreen()
+    data class Developer(val deviceId: String) : AppScreen()
+    data class ClipboardHistory(val deviceId: String? = null) : AppScreen()
+    data class TaskManager(val deviceId: String? = null) : AppScreen()
+    data class LiveScreen(val deviceId: String) : AppScreen()
 }

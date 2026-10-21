@@ -124,10 +124,34 @@ interface RemoteForgeApiService {
         @Path("task_id") taskId: String
     ): Response<TaskItem>
 
+    @POST("api/tasks/{task_id}/cancel")
+    suspend fun cancelTask(
+        @Header("Authorization") authHeader: String,
+        @Path("task_id") taskId: String
+    ): Response<TaskItem>
+
+    @POST("api/tasks/{task_id}/retry")
+    suspend fun retryTask(
+        @Header("Authorization") authHeader: String,
+        @Path("task_id") taskId: String
+    ): Response<TaskItem>
+
+    @DELETE("api/tasks/cleanup")
+    suspend fun cleanupTasks(
+        @Header("Authorization") authHeader: String,
+        @Query("keep_count") keepCount: Int = 50
+    ): Response<Map<String, Any>>
+
+
     @GET("api/automations")
     suspend fun getAutomations(
         @Header("Authorization") authHeader: String
     ): Response<List<AutomationItem>>
+
+    @GET("api/automations/history")
+    suspend fun getAutomationHistory(
+        @Header("Authorization") authHeader: String
+    ): Response<List<AutomationHistoryItem>>
 
     @POST("api/automations")
     suspend fun createAutomation(
@@ -154,9 +178,146 @@ interface RemoteForgeApiService {
         @Path("id") id: String
     ): Response<Map<String, Any>>
 
-    @GET("api/automations/history")
-    suspend fun getAutomationHistory(
+    @GET("api/automations/templates")
+    suspend fun getWorkflowTemplates(
+        @Header("Authorization") authHeader: String
+    ): Response<List<WorkflowDefinitionItem>>
+
+    @POST("api/automations/dry-run")
+    suspend fun dryRunWorkflow(
         @Header("Authorization") authHeader: String,
-        @Query("limit") limit: Int = 50
-    ): Response<List<AutomationHistoryItem>>
+        @Body workflow: Map<String, Any>
+    ): Response<WorkflowDryRunResponse>
+
+    @POST("api/automations/{id}/dry-run")
+    suspend fun dryRunSavedAutomation(
+        @Header("Authorization") authHeader: String,
+        @Path("id") id: String
+    ): Response<WorkflowDryRunResponse>
+
+    @POST("api/automations/executions/{id}/cancel")
+    suspend fun cancelWorkflowExecution(
+        @Header("Authorization") authHeader: String,
+        @Path("id") id: String
+    ): Response<Map<String, Any>>
+
+    @GET("api/automations/executions")
+    suspend fun getWorkflowExecutions(
+        @Header("Authorization") authHeader: String
+    ): Response<List<WorkflowExecutionItem>>
+
+    @POST("api/stream/control/{id}")
+    suspend fun controlScreenStream(
+        @Header("Authorization") authHeader: String,
+        @Path("id") id: String,
+        @Body request: StreamControlRequest
+    ): Response<Map<String, Any>>
+
+    @GET("api/stream/status/{id}")
+    suspend fun getScreenStreamStatus(
+        @Header("Authorization") authHeader: String,
+        @Path("id") id: String
+    ): Response<StreamStatusResponse>
+
+    // Universal Clipboard History Endpoints
+    @GET("api/clipboard/history")
+    suspend fun getClipboardHistory(
+        @Header("Authorization") authHeader: String,
+        @Query("limit") limit: Int = 50,
+        @Query("type") type: String? = null
+    ): Response<List<ClipboardItem>>
+
+    @POST("api/clipboard/sync")
+    suspend fun syncClipboardItem(
+        @Header("Authorization") authHeader: String,
+        @Body request: ClipboardSyncRequest
+    ): Response<Map<String, Any>>
+
+    @POST("api/clipboard/copy")
+    suspend fun copyClipboardToDevice(
+        @Header("Authorization") authHeader: String,
+        @Body request: ClipboardCopyRequest
+    ): Response<Map<String, Any>>
+
+    @DELETE("api/clipboard/clear")
+    suspend fun clearClipboardHistory(
+        @Header("Authorization") authHeader: String
+    ): Response<Map<String, Any>>
+
+    @DELETE("api/clipboard/{item_id}")
+    suspend fun deleteClipboardItem(
+        @Header("Authorization") authHeader: String,
+        @Path("item_id") itemId: String
+    ): Response<Map<String, Any>>
+
+    // Guest Access, Co-Control & Privacy Shield Endpoints
+    @POST("api/guest/invitations")
+    suspend fun createGuestInvitation(
+        @Header("Authorization") authHeader: String,
+        @Body request: GuestInvitationCreateRequest
+    ): Response<GuestInvitationResponse>
+
+    @GET("api/guest/invitations/{device_id}")
+    suspend fun listGuestInvitations(
+        @Header("Authorization") authHeader: String,
+        @Path("device_id") deviceId: String
+    ): Response<List<GuestInvitationResponse>>
+
+    @DELETE("api/guest/invitations/{invitation_id}")
+    suspend fun revokeGuestInvitation(
+        @Header("Authorization") authHeader: String,
+        @Path("invitation_id") invitationId: String
+    ): Response<Map<String, Any>>
+
+    @GET("api/guest/sessions/{device_id}")
+    suspend fun listGuestSessions(
+        @Header("Authorization") authHeader: String,
+        @Path("device_id") deviceId: String
+    ): Response<List<GuestSessionResponse>>
+
+    @POST("api/guest/sessions/{session_id}/approve")
+    suspend fun approveGuestSession(
+        @Header("Authorization") authHeader: String,
+        @Path("session_id") sessionId: String,
+        @Body request: GuestApprovalRequest
+    ): Response<GuestSessionResponse>
+
+    @POST("api/guest/sessions/{session_id}/revoke")
+    suspend fun revokeGuestSession(
+        @Header("Authorization") authHeader: String,
+        @Path("session_id") sessionId: String,
+        @Query("reason") reason: String = "Revoked by owner"
+    ): Response<Map<String, Any>>
+
+    @GET("api/guest/privacy-shield/{device_id}")
+    suspend fun getPrivacyShield(
+        @Header("Authorization") authHeader: String,
+        @Path("device_id") deviceId: String
+    ): Response<PrivacyShieldResponse>
+
+    @POST("api/guest/privacy-shield/{device_id}")
+    suspend fun updatePrivacyShield(
+        @Header("Authorization") authHeader: String,
+        @Path("device_id") deviceId: String,
+        @Body request: PrivacyShieldUpdateRequest
+    ): Response<PrivacyShieldResponse>
+
+    @GET("api/guest/staging/files")
+    suspend fun listStagedFiles(
+        @Header("Authorization") authHeader: String,
+        @Query("device_id") deviceId: String? = null
+    ): Response<List<StagedFileResponse>>
+
+    @POST("api/guest/staging/promote/{file_id}")
+    suspend fun promoteStagedFile(
+        @Header("Authorization") authHeader: String,
+        @Path("file_id") fileId: String,
+        @Body request: PromoteFileRequest
+    ): Response<StagedFileResponse>
+
+    @DELETE("api/guest/staging/files/{file_id}")
+    suspend fun deleteStagedFile(
+        @Header("Authorization") authHeader: String,
+        @Path("file_id") fileId: String
+    ): Response<Map<String, Any>>
 }

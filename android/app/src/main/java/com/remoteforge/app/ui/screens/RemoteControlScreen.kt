@@ -5,6 +5,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -24,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -55,11 +58,45 @@ fun RemoteControlScreen(
     var shiftActive by remember { mutableStateOf(false) }
 
     // Touchpad Settings
-    var sensitivity by remember { mutableStateOf(1.2f) }
+    var sensitivity by remember { mutableStateOf(0.42f) }
     var isDragLock by remember { mutableStateOf(false) }
     var actionNotice by remember { mutableStateOf<String?>(null) }
     var textInput by remember { mutableStateOf("") }
     var showScrollOverlay by remember { mutableStateOf(false) }
+
+    // Trackpad In-Flight Delta Accumulator (Eliminates Gliding / Request Backlog)
+    var pendingDx by remember { mutableStateOf(0f) }
+    var pendingDy by remember { mutableStateOf(0f) }
+    var isSendingMove by remember { mutableStateOf(false) }
+
+    fun flushTrackpadMove() {
+        if (isSendingMove) return
+        val mx = pendingDx
+        val my = pendingDy
+        if (kotlin.math.abs(mx) < 0.2f && kotlin.math.abs(my) < 0.2f) return
+        pendingDx = 0f
+        pendingDy = 0f
+        isSendingMove = true
+        coroutineScope.launch {
+            try {
+                val action = if (isDragLock) "mouse_drag" else "mouse_move_relative"
+                repository.sendInputEvent(
+                    deviceId,
+                    mapOf(
+                        "action" to action,
+                        "dx" to mx.toDouble(),
+                        "dy" to my.toDouble(),
+                        "timestamp" to (System.currentTimeMillis() / 1000.0)
+                    )
+                )
+            } finally {
+                isSendingMove = false
+                if (kotlin.math.abs(pendingDx) >= 0.3f || kotlin.math.abs(pendingDy) >= 0.3f) {
+                    flushTrackpadMove()
+                }
+            }
+        }
+    }
 
     fun currentModifiersList(): List<String> {
         val list = mutableListOf<String>()
@@ -108,7 +145,7 @@ fun RemoteControlScreen(
                         Text(
                             text = "Live Trackpad & Keyboard Control",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ElectricCyan
+                            color = RoyalViolet
                         )
                     }
                 },
@@ -117,7 +154,7 @@ fun RemoteControlScreen(
                         Icon(
                             imageVector = Icons.Rounded.ArrowBack,
                             contentDescription = "Back",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
                 },
@@ -160,9 +197,9 @@ fun RemoteControlScreen(
             // Notice banner if action performed
             actionNotice?.let { notice ->
                 Surface(
-                    color = ElectricCyan.copy(alpha = 0.12f),
+                    color = RoyalViolet.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, ElectricCyan.copy(alpha = 0.3f)),
+                    border = BorderStroke(1.dp, RoyalViolet.copy(alpha = 0.3f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -170,11 +207,11 @@ fun RemoteControlScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(notice, color = ElectricCyan, style = MaterialTheme.typography.bodySmall)
+                        Text(notice, color = RoyalViolet, style = MaterialTheme.typography.bodySmall)
                         Icon(
                             imageVector = Icons.Rounded.Close,
                             contentDescription = "Dismiss",
-                            tint = ElectricCyan,
+                            tint = RoyalViolet,
                             modifier = Modifier
                                 .size(16.dp)
                                 .clickable { actionNotice = null }
@@ -204,8 +241,8 @@ fun RemoteControlScreen(
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = ElectricCyan.copy(alpha = 0.25f),
-                        selectedLabelColor = ElectricCyan,
+                        selectedContainerColor = RoyalViolet.copy(alpha = 0.25f),
+                        selectedLabelColor = RoyalViolet,
                         containerColor = ObsidianSurface,
                         labelColor = TextMutedDark
                     ),
@@ -213,19 +250,19 @@ fun RemoteControlScreen(
                         enabled = true,
                         selected = isDragLock,
                         borderColor = GlassBorderSubtle,
-                        selectedBorderColor = ElectricCyan
+                        selectedBorderColor = RoyalViolet
                     )
                 )
 
                 // Sensitivity selector chips
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(0.8f to "0.8x", 1.2f to "1.2x", 1.8f to "1.8x", 2.4f to "2.4x").forEach { (speed, label) ->
+                    listOf(0.3f to "0.3x", 0.42f to "0.4x", 0.7f to "0.7x", 1.0f to "1.0x").forEach { (speed, label) ->
                         val isSelected = sensitivity == speed
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) ElectricCyan.copy(alpha = 0.2f) else ObsidianSurface)
-                                .border(1.dp, if (isSelected) ElectricCyan else GlassBorderSubtle, RoundedCornerShape(8.dp))
+                                .background(if (isSelected) RoyalViolet.copy(alpha = 0.2f) else ObsidianSurface)
+                                .border(1.dp, if (isSelected) RoyalViolet else GlassBorderSubtle, RoundedCornerShape(8.dp))
                                 .clickable {
                                     sensitivity = speed
                                     triggerHaptic()
@@ -235,7 +272,7 @@ fun RemoteControlScreen(
                             Text(
                                 text = label,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (isSelected) ElectricCyan else TextMutedDark,
+                                color = if (isSelected) RoyalViolet else TextMutedDark,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -253,29 +290,46 @@ fun RemoteControlScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
+                        .pointerInput(sensitivity, isDragLock) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                var isDrag = false
+                                var totalDistance = 0f
+                                val startTime = System.currentTimeMillis()
+                                var longPressTriggered = false
+
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!change.pressed) {
+                                        break
+                                    }
+
+                                    val delta = change.positionChange()
+                                    totalDistance += kotlin.math.hypot(delta.x, delta.y)
+
+                                    if (totalDistance > 6f) {
+                                        isDrag = true
+                                        change.consume()
+                                        pendingDx += delta.x * sensitivity
+                                        pendingDy += delta.y * sensitivity
+                                        flushTrackpadMove()
+                                    } else if (!longPressTriggered && (System.currentTimeMillis() - startTime) > 500L) {
+                                        longPressTriggered = true
+                                        isDrag = true
+                                        triggerHaptic()
+                                        sendInput("mouse_click", mapOf("button" to "right"))
+                                    }
+                                }
+
+                                pendingDx = 0f
+                                pendingDy = 0f
+
+                                // Tap to left-click if finger lifted without dragging or long-pressing
+                                if (!isDrag && !longPressTriggered && totalDistance <= 6f && (System.currentTimeMillis() - startTime) < 400L) {
                                     triggerHaptic()
                                     sendInput("mouse_click", mapOf("button" to "left"))
-                                },
-                                onDoubleTap = {
-                                    triggerHaptic()
-                                    sendInput("mouse_double_click", mapOf("button" to "left"))
-                                },
-                                onLongPress = {
-                                    triggerHaptic()
-                                    sendInput("mouse_click", mapOf("button" to "right"))
                                 }
-                            )
-                        }
-                        .pointerInput(sensitivity, isDragLock) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                val dx = dragAmount.x * sensitivity
-                                val dy = dragAmount.y * sensitivity
-                                val action = if (isDragLock) "mouse_drag" else "mouse_move_relative"
-                                sendInput(action, mapOf("dx" to dx.toDouble(), "dy" to dy.toDouble()))
                             }
                         }
                 ) {
@@ -370,7 +424,7 @@ fun RemoteControlScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.SwapVert, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Rounded.SwapVert, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Fast Page Scroll", style = MaterialTheme.typography.bodyMedium, color = TextPrimaryDark)
                     }
@@ -385,7 +439,7 @@ fun RemoteControlScreen(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
                         ) {
-                            Icon(Icons.Rounded.ArrowUpward, contentDescription = "Scroll Up", tint = ElectricCyan, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.ArrowUpward, contentDescription = "Scroll Up", tint = RoyalViolet, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Up", color = TextPrimaryDark, style = MaterialTheme.typography.labelSmall)
                         }
@@ -400,7 +454,7 @@ fun RemoteControlScreen(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
                         ) {
-                            Icon(Icons.Rounded.ArrowDownward, contentDescription = "Scroll Down", tint = ElectricCyan, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.ArrowDownward, contentDescription = "Scroll Down", tint = RoyalViolet, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Down", color = TextPrimaryDark, style = MaterialTheme.typography.labelSmall)
                         }
@@ -424,7 +478,7 @@ fun RemoteControlScreen(
                 ModifierKeyButton(
                     label = "⌘ Cmd",
                     isActive = cmdActive,
-                    accentColor = ElectricCyan,
+                    accentColor = RoyalViolet,
                     modifier = Modifier.weight(1f)
                 ) {
                     cmdActive = !cmdActive
@@ -575,11 +629,11 @@ fun RemoteControlScreen(
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("Type words or sentence to insert...", color = TextMutedDark) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ElectricCyan,
+                            focusedBorderColor = RoyalViolet,
                             unfocusedBorderColor = GlassBorderSubtle,
                             focusedTextColor = TextPrimaryDark,
                             unfocusedTextColor = TextPrimaryDark,
-                            cursorColor = ElectricCyan
+                            cursorColor = RoyalViolet
                         ),
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -611,7 +665,7 @@ fun RemoteControlScreen(
                             },
                             enabled = textInput.isNotBlank(),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = ElectricCyan,
+                                containerColor = RoyalViolet,
                                 contentColor = Color.Black
                             ),
                             shape = RoundedCornerShape(10.dp)
@@ -680,7 +734,7 @@ private fun ShortcutPill(
                 text = shortcut,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = ElectricCyan,
+                color = RoyalViolet,
                 fontFamily = FontFamily.Monospace
             )
             Text(

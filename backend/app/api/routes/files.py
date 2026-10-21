@@ -116,6 +116,24 @@ async def get_user_file_metadata(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+TEXT_CODE_EXTENSIONS = {
+    ".txt", ".json", ".csv", ".tsv", ".log", ".py", ".js", ".ts", ".tsx", ".jsx",
+    ".html", ".htm", ".css", ".scss", ".xml", ".yaml", ".yml", ".sh", ".bash",
+    ".zsh", ".bat", ".ps1", ".java", ".kt", ".kts", ".rs", ".go", ".c", ".cpp",
+    ".cc", ".cxx", ".h", ".hpp", ".rb", ".php", ".sql", ".toml", ".ini", ".env",
+    ".properties", ".gradle", ".conf", ".cfg", ".mjs", ".cjs"
+}
+MARKDOWN_EXTENSIONS = {".md", ".markdown"}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".bmp", ".ico"}
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac"}
+VIDEO_EXTENSIONS = {".mp4", ".mkv", ".webm", ".mov", ".3gp"}
+
+text_exts = TEXT_CODE_EXTENSIONS
+markdown_exts = MARKDOWN_EXTENSIONS
+image_exts = IMAGE_EXTENSIONS
+audio_exts = AUDIO_EXTENSIONS
+video_exts = VIDEO_EXTENSIONS
+
 @router.get("/preview")
 async def preview_user_file(
     device_id: str,
@@ -130,18 +148,22 @@ async def preview_user_file(
         raise HTTPException(status_code=503, detail="Device is offline.")
 
     ext = os.path.splitext(path)[1].lower()
-    text_exts = {".txt", ".md", ".json", ".csv", ".log", ".py", ".js", ".html", ".css", ".xml", ".yaml", ".yml", ".sh", ".bat"}
-    image_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+    is_supported = (
+        ext in TEXT_CODE_EXTENSIONS or ext in MARKDOWN_EXTENSIONS or ext in IMAGE_EXTENSIONS or
+        ext in AUDIO_EXTENSIONS or ext in VIDEO_EXTENSIONS or ext == ".pdf"
+    )
 
-    if ext not in text_exts and ext not in image_exts and ext != ".pdf":
+    if not is_supported:
         return {
             "preview_supported": False,
             "filename": os.path.basename(path),
-            "message": "This file cannot be previewed here. Use Download to view it locally."
+            "file_size": 0,
+            "message": "This file cannot be previewed in-app. Use Download to save it locally."
         }
 
-    # For images and PDFs, allow up to 10 MB bounded so full-resolution photos load completely
-    preview_length = 10 * 1024 * 1024 if (ext in image_exts or ext == ".pdf") else (512 * 1024)
+    # For binary media (images, audio, video, PDFs), allow up to 10 MB bounded chunk
+    is_media = ext in image_exts or ext in audio_exts or ext in video_exts or ext == ".pdf"
+    preview_length = 10 * 1024 * 1024 if is_media else (512 * 1024)
 
     preview_req_id = str(uuid.uuid4())
     res = await ws_manager.send_command_to_agent(
@@ -162,6 +184,21 @@ async def preview_user_file(
     raw_b64 = chunk_info.get("data_base64", "")
     file_size = chunk_info.get("file_size", 0)
     filename = chunk_info.get("filename", os.path.basename(path))
+
+    if ext in markdown_exts:
+        try:
+            raw_bytes = base64.b64decode(raw_b64.encode("utf-8"))
+            text_content = raw_bytes.decode("utf-8", errors="replace")
+            return {
+                "preview_supported": True,
+                "preview_type": "markdown",
+                "filename": filename,
+                "file_size": file_size,
+                "content": text_content,
+                "is_truncated": file_size > 512 * 1024
+            }
+        except Exception:
+            pass
 
     if ext in text_exts:
         try:
@@ -193,6 +230,22 @@ async def preview_user_file(
             "image_data_base64": raw_b64
         }
 
+    if ext in audio_exts or ext in video_exts:
+        ptype = "audio" if ext in audio_exts else "video"
+        mime = f"audio/{ext.replace('.', '')}" if ext in audio_exts else f"video/{ext.replace('.', '')}"
+        if ext == ".mp3":
+            mime = "audio/mpeg"
+        elif ext == ".mov":
+            mime = "video/quicktime"
+        return {
+            "preview_supported": True,
+            "preview_type": ptype,
+            "filename": filename,
+            "file_size": file_size,
+            "mime_type": mime,
+            "media_data_base64": raw_b64
+        }
+
     if ext == ".pdf":
         return {
             "preview_supported": True,
@@ -205,7 +258,8 @@ async def preview_user_file(
     return {
         "preview_supported": False,
         "filename": filename,
-        "message": "This file cannot be previewed here. Use Download to view it locally."
+        "file_size": file_size,
+        "message": "This file cannot be previewed in-app. Use Download to save it locally."
     }
 
 @router.get("/hash")
@@ -507,6 +561,31 @@ async def upload_file_stream(
         )
 
         sha256_hash = agent_res.get("result", {}).get("sha256", "") if agent_res else ""
+
+        # Post host notification and broadcast to dashboard
+        try:
+            loc_label = "Desktop" if "desktop" in target_directory.lower() else target_directory
+            if ws_manager.is_agent_online(device_id):
+                await ws_manager.send_command_to_agent(
+                    device_id=device_id,
+                    request_id=str(uuid.uuid4()),
+                    tool="show_notification",
+                    arguments={
+                        "title": "RemoteForge File Received",
+                        "message": f"File '{safe_filename}' received from {current_user.username} on {loc_label}"
+                    }
+                )
+            await ws_manager.broadcast_to_clients({
+                "type": "file_transferred",
+                "device_id": device_id,
+                "filename": safe_filename,
+                "bytes_transferred": total_bytes,
+                "target_directory": target_directory,
+                "location": loc_label
+            })
+        except Exception:
+            pass
+
         return {
             "success": True,
             "filename": safe_filename,

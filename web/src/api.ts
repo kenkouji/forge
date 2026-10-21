@@ -69,6 +69,55 @@ export interface AuditLogItem {
   details?: string;
 }
 
+export interface GuestInvitation {
+  id: string;
+  device_id: string;
+  invite_secret?: string;
+  qr_payload: string;
+  expires_at: string;
+  capabilities: string[];
+  is_redeemed: boolean;
+  is_revoked: boolean;
+}
+
+export interface GuestSession {
+  id: string;
+  session_id?: string;
+  device_id: string;
+  guest_name: string;
+  status: string;
+  control_mode: string;
+  approved_capabilities: string[];
+  capabilities?: string[];
+  expires_at: string;
+  created_at?: string;
+  is_active?: boolean;
+}
+
+export interface PrivacyShieldStatus {
+  device_id: string;
+  is_lockdown: boolean;
+  is_screen_paused: boolean;
+  is_input_disabled: boolean;
+  is_transfers_stopped: boolean;
+  pending_host_sync: boolean;
+  active_guests_count: number;
+  updated_at: string;
+}
+
+export interface StagedFile {
+  id: string;
+  session_id: string;
+  device_id: string;
+  filename: string;
+  file_size: number;
+  sha256_hash: string;
+  status: string;
+  uploaded_at: string;
+  promoted_to_path?: string;
+}
+
+
 export interface AuditDayStat {
   date: string;
   total: number;
@@ -139,8 +188,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const baseUrl = getServerBaseUrl();
   const token = getAuthToken();
   const headers = new Headers(options.headers || {});
-  headers.set("Content-Type", "application/json");
-  if (token) {
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (!headers.has("Authorization") && token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
@@ -148,9 +199,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401) {
-    clearAuthToken();
-    window.dispatchEvent(new Event("rf_auth_unauthorized"));
-    throw new Error("Authentication session expired. Please log in.");
+    // Only clear global auth token if the request was made using the global auth token
+    if (!options.headers || !new Headers(options.headers).has("Authorization")) {
+      clearAuthToken();
+      window.dispatchEvent(new Event("rf_auth_unauthorized"));
+    }
+    throw new Error("Authentication session expired or unauthorized.");
   }
 
   if (!response.ok) {
@@ -238,6 +292,11 @@ export const api = {
       query += `&directory=${encodeURIComponent(directory)}`;
     }
     return request<{ success: boolean; result: { query: string; count: number; matches: any[] } }>(`/api/files/search?${query}`);
+  },
+
+  previewFile: (deviceId: string, filePath: string) => {
+    const query = `device_id=${encodeURIComponent(deviceId)}&path=${encodeURIComponent(filePath)}`;
+    return request<any>(`/api/files/preview?${query}`);
   },
 
   downloadFile: async (deviceId: string, filePath: string, filename?: string) => {
@@ -335,5 +394,195 @@ export const api = {
     };
 
     return ws;
+  },
+
+  // --- Guest Access & Co-Control APIs ---
+  createGuestInvitation: (deviceId: string, capabilities: string[] = ["screen.view", "input.control"], expiresInMinutes = 15) => {
+    return request<GuestInvitation>("/api/guest/invitations", {
+      method: "POST",
+      body: JSON.stringify({
+        device_id: deviceId,
+        capabilities,
+        expires_in_minutes: expiresInMinutes,
+      }),
+    });
+  },
+
+  listGuestInvitations: (deviceId: string) => {
+    return request<GuestInvitation[]>(`/api/guest/invitations/${encodeURIComponent(deviceId)}`);
+  },
+
+  revokeGuestInvitation: (invitationId: string) => {
+    return request<{ status: string; message: string }>(`/api/guest/invitations/${encodeURIComponent(invitationId)}`, {
+      method: "DELETE",
+    });
+  },
+
+  redeemGuestInvitation: (invitationId: string, inviteSecret: string, guestName: string) => {
+    return request<{
+      guest_token: string;
+      session_id: string;
+      device_id: string;
+      status: string;
+      capabilities: string[];
+      expires_at: string;
+    }>("/api/guest/redeem", {
+      method: "POST",
+      body: JSON.stringify({
+        invitation_id: invitationId,
+        invite_secret: inviteSecret,
+        guest_name: guestName,
+      }),
+    });
+  },
+
+  getGuestSessionStatus: async (guestToken: string): Promise<GuestSession> => {
+    const data = await request<any>("/api/guest/session/status", {
+      headers: {
+        Authorization: `Bearer ${guestToken}`,
+      },
+    });
+    const caps = data.approved_capabilities || data.capabilities || [];
+    const id = data.id || data.session_id || "";
+    return {
+      ...data,
+      id,
+      session_id: id,
+      approved_capabilities: caps,
+      capabilities: caps,
+    };
+  },
+
+  listGuestSessions: (deviceId: string) => {
+    return request<GuestSession[]>(`/api/guest/sessions/${encodeURIComponent(deviceId)}`);
+  },
+
+  approveGuestSession: (sessionId: string, approvedCapabilities: string[], controlMode = "shared-control", durationMinutes = 30) => {
+    return request<GuestSession>(`/api/guest/sessions/${encodeURIComponent(sessionId)}/approve`, {
+      method: "POST",
+      body: JSON.stringify({
+        approve: true,
+        approved_capabilities: approvedCapabilities,
+        capabilities: approvedCapabilities,
+        control_mode: controlMode,
+        duration_minutes: durationMinutes,
+      }),
+    });
+  },
+
+  revokeGuestSession: (sessionId: string, reason = "Revoked by owner") => {
+    return request<{ status: string; message: string }>(`/api/guest/sessions/${encodeURIComponent(sessionId)}/revoke?reason=${encodeURIComponent(reason)}`, {
+      method: "POST",
+    });
+  },
+
+  getPrivacyShield: (deviceId: string) => {
+    return request<PrivacyShieldStatus>(`/api/guest/privacy-shield/${encodeURIComponent(deviceId)}`);
+  },
+
+  updatePrivacyShield: (deviceId: string, update: {
+    is_lockdown?: boolean;
+    is_screen_paused?: boolean;
+    is_input_disabled?: boolean;
+    is_transfers_stopped?: boolean;
+    action?: string;
+  }) => {
+    return request<PrivacyShieldStatus>(`/api/guest/privacy-shield/${encodeURIComponent(deviceId)}`, {
+      method: "POST",
+      body: JSON.stringify(update),
+    });
+  },
+
+  listStagedFiles: (deviceId?: string, customToken?: string) => {
+    const params = new URLSearchParams();
+    if (deviceId) params.set("device_id", deviceId);
+    const headers: Record<string, string> = {};
+    if (customToken) headers["Authorization"] = `Bearer ${customToken}`;
+    return request<StagedFile[]>(`/api/guest/staging/files?${params.toString()}`, { headers });
+  },
+
+  uploadStagedFile: async (file: File, deviceId?: string, customToken?: string): Promise<StagedFile> => {
+    const baseUrl = getServerBaseUrl();
+    const token = customToken || getAuthToken();
+    const url = `${baseUrl}/api/guest/staging/upload`;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (deviceId) {
+      formData.append("device_id", deviceId);
+    }
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let err = response.statusText;
+      try {
+        const j = await response.json();
+        err = j.detail || err;
+      } catch {
+        // ignore
+      }
+      throw new Error(err);
+    }
+    return response.json();
+  },
+
+  downloadStagedFile: async (fileId: string, filename?: string, customToken?: string) => {
+    const baseUrl = getServerBaseUrl();
+    const token = customToken || getAuthToken();
+    const url = `${baseUrl}/api/guest/staging/download/${encodeURIComponent(fileId)}`;
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      let err = response.statusText;
+      try {
+        const j = await response.json();
+        err = j.detail || err;
+      } catch {
+        // ignore
+      }
+      throw new Error(err);
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = filename || "staged_file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
+  promoteStagedFile: (fileId: string, destinationDir: string) => {
+    return request<StagedFile>(`/api/guest/staging/promote/${encodeURIComponent(fileId)}`, {
+      method: "POST",
+      body: JSON.stringify({ destination_dir: destinationDir }),
+    });
+  },
+
+  deleteStagedFile: (fileId: string, customToken?: string) => {
+    const headers: Record<string, string> = {};
+    if (customToken) headers["Authorization"] = `Bearer ${customToken}`;
+    return request<{ status: string; message: string }>(`/api/guest/staging/files/${encodeURIComponent(fileId)}`, {
+      method: "DELETE",
+      headers,
+    });
   },
 };

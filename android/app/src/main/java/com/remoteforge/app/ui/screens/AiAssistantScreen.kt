@@ -162,7 +162,7 @@ fun AiAssistantScreen(
                     Text(
                         text = suggestion,
                         fontSize = 11.sp,
-                        color = AccentCyan,
+                        color = RoyalViolet,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
@@ -304,7 +304,7 @@ fun AiAssistantScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(AccentCyan))
+                                                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(RoyalViolet))
                                                 Text("$cpuP% CPU", color = TextPureWhite, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                             }
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -327,7 +327,7 @@ fun AiAssistantScreen(
                                     ) {
                                         Text(
                                             text = "Suggested Files (${msg.matchedFiles.size}):",
-                                            color = AccentCyan,
+                                            color = RoyalViolet,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -377,7 +377,7 @@ fun AiAssistantScreen(
                                                             },
                                                             modifier = Modifier.size(28.dp)
                                                         ) {
-                                                            Icon(Icons.Rounded.Visibility, contentDescription = "Preview", tint = AccentCyan, modifier = Modifier.size(16.dp))
+                                                            Icon(Icons.Rounded.Visibility, contentDescription = "Preview", tint = RoyalViolet, modifier = Modifier.size(16.dp))
                                                         }
 
                                                         // Download button
@@ -408,8 +408,8 @@ fun AiAssistantScreen(
                                             ) {
                                                 Surface(
                                                     shape = RoundedCornerShape(10.dp),
-                                                    color = AccentCyan.copy(alpha = 0.15f),
-                                                    border = BorderStroke(0.5.dp, AccentCyan.copy(alpha = 0.4f)),
+                                                    color = RoyalViolet.copy(alpha = 0.15f),
+                                                    border = BorderStroke(0.5.dp, RoyalViolet.copy(alpha = 0.4f)),
                                                     modifier = Modifier.clickable {
                                                         val pdfFile = msg.matchedFiles.firstOrNull { it.name.endsWith(".pdf", ignoreCase = true) }
                                                         if (pdfFile != null) {
@@ -417,7 +417,7 @@ fun AiAssistantScreen(
                                                         }
                                                     }
                                                 ) {
-                                                    Text("Open PDF Version", color = AccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                                                    Text("Open PDF Version", color = RoyalViolet, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
                                                 }
 
                                                 Surface(
@@ -442,8 +442,8 @@ fun AiAssistantScreen(
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(10.dp))
                                             .clickable { onNavigate(AppScreen.Files) },
-                                        color = AccentCyan.copy(alpha = 0.12f),
-                                        border = BorderStroke(0.5.dp, AccentCyan.copy(alpha = 0.35f))
+                                        color = RoyalViolet.copy(alpha = 0.12f),
+                                        border = BorderStroke(0.5.dp, RoyalViolet.copy(alpha = 0.35f))
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -451,10 +451,10 @@ fun AiAssistantScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
-                                                Text("View in File Explorer", color = AccentCyan, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                                Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(14.dp))
+                                                Text("View in File Explorer", color = RoyalViolet, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                             }
-                                            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(16.dp))
                                         }
                                     }
                                 }
@@ -546,7 +546,7 @@ fun AiAssistantScreen(
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(14.dp),
-                                    color = AccentCyan,
+                                    color = RoyalViolet,
                                     strokeWidth = 2.dp
                                 )
                                 Text("Autonomous assistant is reasoning...", color = TextRestrainedGray, fontSize = 12.sp)

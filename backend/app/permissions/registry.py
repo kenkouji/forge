@@ -88,8 +88,47 @@ TOOL_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "permission": PermissionLevel.LOW,
         "requires_confirmation": False,
         "description": "Send authenticated remote touchpad or keyboard input event.",
-        "allowed_arguments": ["action", "dx", "dy", "x", "y", "button", "click_count", "is_drag", "key", "modifiers", "name", "text", "timestamp"]
+        "allowed_arguments": ["action", "dx", "dy", "x", "y", "rel_x", "rel_y", "button", "click_count", "is_drag", "key", "modifiers", "name", "text", "timestamp", "actor"]
     },
+    "telestrator_event": {
+        "permission": PermissionLevel.LOW,
+        "requires_confirmation": False,
+        "description": "Send collaborative glowing laser pointer or fading telestrator stroke annotation.",
+        "allowed_arguments": ["action", "rel_x", "rel_y", "points", "color", "clear", "actor", "timestamp"]
+    },
+
+    # Developer Workstation Tools (LOW / MEDIUM)
+    "git_status": {
+        "permission": PermissionLevel.LOW,
+        "requires_confirmation": False,
+        "description": "Inspect Git repository branch, staged/unstaged changes, untracked files, and latest commit.",
+        "allowed_arguments": ["path", "project_path"]
+    },
+    "git_diff": {
+        "permission": PermissionLevel.LOW,
+        "requires_confirmation": False,
+        "description": "Inspect Git unified diff for working tree or specific file in allowed directory.",
+        "allowed_arguments": ["path", "project_path", "file_path", "file", "staged"]
+    },
+    "build_project": {
+        "permission": PermissionLevel.MEDIUM,
+        "requires_confirmation": False,
+        "description": "Execute bounded build or test task with circular output buffering.",
+        "allowed_arguments": ["path", "project_path", "task_type", "task", "command", "custom_cmd", "timeout_seconds", "timeout"]
+    },
+    "get_clipboard": {
+        "permission": PermissionLevel.LOW,
+        "requires_confirmation": False,
+        "description": "Retrieve Mac system clipboard text and images.",
+        "allowed_arguments": ["include_image"]
+    },
+    "set_clipboard": {
+        "permission": PermissionLevel.LOW,
+        "requires_confirmation": False,
+        "description": "Set Mac system clipboard text or image.",
+        "allowed_arguments": ["text", "content_type", "image_base64"]
+    },
+
 
     # Controlled Browser Automation (LOW)
     "open_browser": {
@@ -197,6 +236,26 @@ TOOL_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "requires_confirmation": True,
         "description": "Gracefully shut down the remote computer.",
         "allowed_arguments": []
+    },
+
+    # Low-Latency Screen Streaming Tools (LOW)
+    "get_stream_frame": {
+        "permission": PermissionLevel.LOW,
+        "requires_confirmation": False,
+        "description": "Capture a low-latency JPEG display frame via native CoreGraphics pipeline.",
+        "allowed_arguments": ["width", "quality"]
+    },
+    "configure_stream": {
+        "permission": PermissionLevel.LOW,
+        "requires_confirmation": False,
+        "description": "Configure screen stream resolution, quality, and target frame rate.",
+        "allowed_arguments": ["width", "quality", "fps"]
+    },
+    "get_stream_status": {
+        "permission": PermissionLevel.LOW,
+        "requires_confirmation": False,
+        "description": "Query screen streaming pipeline status, frame count, and duration.",
+        "allowed_arguments": []
     }
 }
 
@@ -264,3 +323,6 @@ def validate_tool_and_permissions(tool_name: str, arguments: Dict[str, Any], is_
         "permission_level": tool_def["permission"].value,
         "requires_confirmation": req_confirmation
     }
+
+TOOL_PERMISSIONS = TOOL_DEFINITIONS
+

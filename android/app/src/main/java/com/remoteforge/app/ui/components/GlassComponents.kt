@@ -155,7 +155,7 @@ fun DeviceCarouselCard(
 ) {
     val haptic = LocalHapticFeedback.current
     val borderBrush = if (isSelected) {
-        Brush.linearGradient(listOf(ElectricCyan, NeonIndigo.copy(alpha = 0.6f)))
+        Brush.linearGradient(listOf(RoyalViolet, LavenderAccent.copy(alpha = 0.6f)))
     } else {
         Brush.verticalGradient(listOf(GlassBorderHighlight, GlassBorderSubtle))
     }
@@ -166,7 +166,7 @@ fun DeviceCarouselCard(
             .shadow(
                 elevation = if (isSelected) 10.dp else 4.dp,
                 shape = RoundedCornerShape(24.dp),
-                ambientColor = if (isSelected) ElectricCyan.copy(alpha = 0.2f) else Color(0x30000000)
+                ambientColor = if (isSelected) RoyalViolet.copy(alpha = 0.2f) else Color(0x30000000)
             )
             .border(
                 BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderBrush),
@@ -201,7 +201,7 @@ fun DeviceCarouselCard(
                             .size(42.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (isSelected) ElectricCyan.copy(alpha = 0.2f) else GlassSurfaceElevated
+                                if (isSelected) RoyalViolet.copy(alpha = 0.2f) else GlassSurfaceElevated
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -212,7 +212,7 @@ fun DeviceCarouselCard(
                                 else -> Icons.Rounded.Terminal
                             },
                             contentDescription = null,
-                            tint = if (isSelected) ElectricCyan else TextSecondaryDark,
+                            tint = if (isSelected) RoyalViolet else TextSecondaryDark,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -260,7 +260,7 @@ fun DeviceCarouselCard(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("CPU", fontSize = 10.sp, color = TextMutedDark)
-                                Text("${cpuPercent.toInt()}%", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ElectricCyan)
+                                Text("${cpuPercent.toInt()}%", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = RoyalViolet)
                             }
                         }
                     }
@@ -277,7 +277,7 @@ fun DeviceCarouselCard(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("RAM", fontSize = 10.sp, color = TextMutedDark)
-                                Text("${ramPercent.toInt()}%", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = NeonIndigo)
+                                Text("${ramPercent.toInt()}%", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LavenderAccent)
                             }
                         }
                     }
@@ -391,7 +391,7 @@ fun TaskProgressCard(
     onClick: () -> Unit = onInspect
 ) {
     val isRunning = task.status == "RUNNING" || task.status == "PENDING"
-    val accent = if (isRunning) ElectricCyan else if (task.status == "COMPLETED") EmeraldOnline else RubyOffline
+    val accent = if (isRunning) RoyalViolet else if (task.status == "COMPLETED") EmeraldOnline else RubyOffline
 
     GlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -450,7 +450,7 @@ fun TaskProgressCard(
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
-                color = ElectricCyan,
+                color = RoyalViolet,
                 trackColor = GlassSurfaceElevated
             )
         }
@@ -521,7 +521,7 @@ fun FileTypeBadge(
                 modifier = modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF2563EB).copy(alpha = 0.2f)),
+                    .background(RoyalVioletDark.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -593,19 +593,19 @@ fun FileTypeBadge(
                 modifier = modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(ElectricCyan.copy(alpha = 0.2f)),
+                    .background(RoyalViolet.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         imageVector = Icons.Rounded.Image,
                         contentDescription = "Image",
-                        tint = ElectricCyan,
+                        tint = RoyalViolet,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = ext.uppercase().take(3),
-                        color = ElectricCyan,
+                        color = RoyalViolet,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -617,19 +617,19 @@ fun FileTypeBadge(
                 modifier = modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(NeonIndigo.copy(alpha = 0.2f)),
+                    .background(LavenderAccent.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         imageVector = Icons.Rounded.Code,
                         contentDescription = "Code",
-                        tint = NeonIndigo,
+                        tint = LavenderAccent,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = ext.uppercase().take(3),
-                        color = NeonIndigo,
+                        color = LavenderAccent,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -758,7 +758,7 @@ fun TransferCard(
         isDone -> EmeraldOnline
         isFailed -> RubyOffline
         isPaused -> AmberWarning
-        else -> ElectricCyan
+        else -> RoyalViolet
     }
 
     GlassCard(
@@ -813,7 +813,7 @@ fun TransferCard(
                 } else if (isPaused) {
                     if (onResume != null) {
                         IconButton(onClick = onResume, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Resume", tint = ElectricCyan, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Resume", tint = RoyalViolet, modifier = Modifier.size(18.dp))
                         }
                     }
                     IconButton(onClick = onCancel, modifier = Modifier.size(28.dp)) {
@@ -822,7 +822,7 @@ fun TransferCard(
                 } else if (isFailed) {
                     if (onResume != null) {
                         IconButton(onClick = onResume, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Rounded.Refresh, contentDescription = "Retry", tint = ElectricCyan, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.Refresh, contentDescription = "Retry", tint = RoyalViolet, modifier = Modifier.size(16.dp))
                         }
                     }
                 } else if (isDone) {
@@ -832,7 +832,7 @@ fun TransferCard(
                         }
                     } else if (onClick != null) {
                         IconButton(onClick = onClick, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Rounded.Visibility, contentDescription = "Preview", tint = ElectricCyan, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.Visibility, contentDescription = "Preview", tint = RoyalViolet, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -847,7 +847,7 @@ fun TransferCard(
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
-                color = if (isPaused) AmberWarning else ElectricCyan,
+                color = if (isPaused) AmberWarning else RoyalViolet,
                 trackColor = GlassSurfaceElevated
             )
         }
@@ -861,14 +861,15 @@ fun AutomationCard(
     onRunNow: () -> Unit,
     onEdit: () -> Unit,
     onDiscard: () -> Unit,
+    onDryRun: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isActive = automation.status == "ACTIVE"
-    val accent = if (isActive) ElectricCyan else TextMutedDark
+    val accent = if (isActive) RoyalViolet else TextMutedDark
 
     GlassCard(
         modifier = modifier.fillMaxWidth(),
-        borderColor = if (isActive) ElectricCyan.copy(alpha = 0.4f) else GlassBorderSubtle,
+        borderColor = if (isActive) RoyalViolet.copy(alpha = 0.4f) else GlassBorderSubtle,
         contentPadding = PaddingValues(14.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -887,7 +888,7 @@ fun AutomationCard(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (isActive) ElectricCyan.copy(alpha = 0.15f) else GlassSurfaceElevated),
+                            .background(if (isActive) RoyalViolet.copy(alpha = 0.15f) else GlassSurfaceElevated),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -919,7 +920,7 @@ fun AutomationCard(
                     onCheckedChange = onToggle,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = ElectricCyan,
+                        checkedTrackColor = RoyalViolet,
                         uncheckedTrackColor = GlassSurfaceElevated
                     )
                 )
@@ -940,7 +941,7 @@ fun AutomationCard(
                 val diffSec = (automation.scheduledEpoch?.minus(nowSec) ?: 0.0).toLong()
                 val badgeColor = when {
                     automation.status == "COMPLETED" -> EmeraldOnline
-                    diffSec > 0 -> ElectricCyan
+                    diffSec > 0 -> RoyalViolet
                     else -> AmberWarning
                 }
                 val badgeText = when {
@@ -978,19 +979,37 @@ fun AutomationCard(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Dry Run Simulation Button
+                    if (onDryRun != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = LavenderAccent.copy(alpha = 0.2f),
+                            modifier = Modifier.clickable { onDryRun() }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(Icons.Rounded.Visibility, contentDescription = "Dry Run", tint = LavenderAccent, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Dry Run", color = LavenderAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
                     // Run Now Button
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = ElectricCyan.copy(alpha = 0.15f),
+                        color = RoyalViolet.copy(alpha = 0.15f),
                         modifier = Modifier.clickable { onRunNow() }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Run", tint = ElectricCyan, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Run", tint = RoyalViolet, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(2.dp))
-                            Text("Run", color = ElectricCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Run", color = RoyalViolet, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -1077,22 +1096,22 @@ fun GlassBottomNavigation(
                                 .shadow(
                                     elevation = 8.dp,
                                     shape = CircleShape,
-                                    ambientColor = ElectricCyan.copy(alpha = 0.5f),
-                                    spotColor = NeonIndigo.copy(alpha = 0.6f)
+                                    ambientColor = RoyalViolet.copy(alpha = 0.5f),
+                                    spotColor = LavenderAccent.copy(alpha = 0.6f)
                                 )
                                 .clip(CircleShape)
                                 .background(
                                     Brush.linearGradient(
                                         listOf(
-                                            if (isSelected) ElectricCyan else Color(0xFF2563EB),
-                                            if (isSelected) NeonIndigo else Color(0xFF7C3AED)
+                                            if (isSelected) RoyalViolet else RoyalVioletDark,
+                                            if (isSelected) LavenderAccent else RoyalViolet
                                         )
                                     )
                                 )
                                 .border(
                                     BorderStroke(
                                         if (isSelected) 2.dp else 1.dp,
-                                        if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0x6038BDF8)
+                                        if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0x60BDA0FF)
                                     ),
                                     shape = CircleShape
                                 )
@@ -1115,7 +1134,7 @@ fun GlassBottomNavigation(
                     } else {
                         // Standard destinations
                         val tabColor by animateColorAsState(
-                            targetValue = if (isSelected) ElectricCyan else TextMutedDark,
+                            targetValue = if (isSelected) RoyalViolet else TextMutedDark,
                             animationSpec = tween(220),
                             label = "tabColor"
                         )
@@ -1123,7 +1142,7 @@ fun GlassBottomNavigation(
                         val bgModifier = if (isSelected) {
                             Modifier
                                 .clip(RoundedCornerShape(18.dp))
-                                .background(ElectricCyan.copy(alpha = 0.12f))
+                                .background(RoyalViolet.copy(alpha = 0.12f))
                         } else {
                             Modifier
                         }
@@ -1282,9 +1301,9 @@ fun EmptyState(
                 Spacer(modifier = Modifier.height(4.dp))
                 Button(
                     onClick = onAction,
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan.copy(alpha = 0.2f))
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet.copy(alpha = 0.2f))
                 ) {
-                    Text(actionLabel, color = ElectricCyan, fontWeight = FontWeight.Bold)
+                    Text(actionLabel, color = RoyalViolet, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1307,7 +1326,7 @@ fun ConfirmationSheet(
                 Icon(
                     imageVector = if (isDestructive) Icons.Rounded.Warning else Icons.Rounded.Info,
                     contentDescription = null,
-                    tint = if (isDestructive) RubyOffline else ElectricCyan,
+                    tint = if (isDestructive) RubyOffline else RoyalViolet,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1321,7 +1340,7 @@ fun ConfirmationSheet(
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isDestructive) RubyOffline else ElectricCyan
+                    containerColor = if (isDestructive) RubyOffline else RoyalViolet
                 )
             ) {
                 Text(confirmButtonText, color = Color.White, fontWeight = FontWeight.Bold)

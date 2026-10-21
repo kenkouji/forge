@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from app.config import settings
 from app.database.base import Base
 from app.database.session import engine, SessionLocal
-from app.models.entities import User
+from app.models.entities import User, Task
 from app.auth.security import get_password_hash
 
 # Routes
@@ -21,6 +21,9 @@ from app.api.routes.audit import router as audit_router
 from app.api.routes.files import router as files_router
 from app.api.routes.ai import router as ai_router
 from app.api.routes.automations import router as automations_router
+from app.api.routes.stream import router as stream_router
+from app.api.routes.clipboard import router as clipboard_router
+from app.api.routes.guest import router as guest_router
 from app.websocket.router import ws_router
 
 
@@ -50,6 +53,29 @@ async def lifespan(app: FastAPI):
             )
             db.add(admin)
             db.commit()
+
+        # Ensure schema migrations for automations
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            try:
+                cols = [row[1] for row in conn.execute(text("PRAGMA table_info(automations)")).fetchall()]
+                if cols and "workflow_definition_json" not in cols:
+                    conn.execute(text("ALTER TABLE automations ADD COLUMN workflow_definition_json TEXT"))
+                    conn.commit()
+                    logger.info("Migrated automations table: added workflow_definition_json column.")
+            except Exception as e:
+                logger.warning(f"Schema migration check note: {e}")
+
+        # Mark in-flight tasks as INTERRUPTED upon server restart
+        import datetime
+        interrupted = db.query(Task).filter(Task.status.in_(["RUNNING", "PENDING"])).all()
+        for it in interrupted:
+            it.status = "INTERRUPTED"
+            it.error_message = "Server restarted while task was in progress."
+            it.completed_at = datetime.datetime.now(datetime.timezone.utc)
+        if interrupted:
+            db.commit()
+            logger.info(f"Marked {len(interrupted)} in-flight tasks as INTERRUPTED on startup.")
     finally:
         db.close()
 
@@ -119,6 +145,9 @@ app.include_router(audit_router, prefix="/api")
 app.include_router(files_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 app.include_router(automations_router, prefix="/api")
+app.include_router(stream_router, prefix="/api")
+app.include_router(clipboard_router, prefix="/api")
+app.include_router(guest_router, prefix="/api")
 app.include_router(ws_router)
 
 

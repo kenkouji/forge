@@ -65,6 +65,7 @@ fun DeviceDetailsScreen(
     var sayTextInput by remember { mutableStateOf("") }
     var showNotificationDialog by remember { mutableStateOf(false) }
     var notifMessageInput by remember { mutableStateOf("") }
+    var showInviteDialog by remember { mutableStateOf(false) }
 
     // Refresh telemetry on launch
     LaunchedEffect(deviceId) {
@@ -94,7 +95,7 @@ fun DeviceDetailsScreen(
                         Icon(
                             imageVector = Icons.Rounded.ArrowBack,
                             contentDescription = "Back",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
                 },
@@ -107,7 +108,7 @@ fun DeviceDetailsScreen(
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = "Refresh Telemetry",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
                 },
@@ -155,13 +156,13 @@ fun DeviceDetailsScreen(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(ElectricCyan.copy(alpha = 0.15f)),
+                                .background(RoyalViolet.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
-                                tint = ElectricCyan,
+                                tint = RoyalViolet,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -252,7 +253,7 @@ fun DeviceDetailsScreen(
                             title = "CPU",
                             percent = t.cpu.percent,
                             subtitle = "${t.cpu.logicalCores} Cores",
-                            accentColor = ElectricCyan
+                            accentColor = RoyalViolet
                         )
                         TelemetryRingGauge(
                             title = "RAM",
@@ -315,7 +316,7 @@ fun DeviceDetailsScreen(
                                 Icon(
                                     imageVector = Icons.Rounded.Speed,
                                     contentDescription = null,
-                                    tint = ElectricCyan,
+                                    tint = RoyalViolet,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -369,14 +370,26 @@ fun DeviceDetailsScreen(
                                         repository.fetchTelemetry(deviceId)
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan.copy(alpha = 0.2f))
+                                colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet.copy(alpha = 0.2f))
                             ) {
-                                Text("Query Telemetry HUD", color = ElectricCyan)
+                                Text("Query Telemetry HUD", color = RoyalViolet)
                             }
                         }
                     }
                 }
             }
+
+            // Privacy Shield & Emergency Lockdown
+            PrivacyShieldCard(
+                deviceId = deviceId,
+                repository = repository
+            )
+
+            // Guest Co-Control & Sessions
+            GuestSessionsCard(
+                deviceId = deviceId,
+                repository = repository
+            )
 
             // Quick Actions & Controls Grid
             Text(
@@ -385,6 +398,17 @@ fun DeviceDetailsScreen(
                 fontWeight = FontWeight.Bold,
                 color = TextMutedDark
             )
+
+            // Invite Browser Guest Banner Action
+            QuickActionCard(
+                title = "Invite Guest to Workstation",
+                subtitle = "Generate single-use QR code for browser co-control",
+                icon = Icons.Rounded.QrCode,
+                accentColor = RoyalViolet,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                showInviteDialog = true
+            }
 
             // Primary Trackpad & Live Screen Row
             Row(
@@ -395,7 +419,7 @@ fun DeviceDetailsScreen(
                     title = "Trackpad & Keys",
                     subtitle = "Mouse & shortcuts",
                     icon = Icons.Rounded.TouchApp,
-                    accentColor = ElectricCyan,
+                    accentColor = RoyalViolet,
                     modifier = Modifier.weight(1f)
                 ) {
                     if (device != null) {
@@ -466,7 +490,47 @@ fun DeviceDetailsScreen(
                 ) {
                     onNavigate(AppScreen.UniversalTransfer(preselectedSourceDevice = device?.id))
                 }
+
+                QuickActionCard(
+                    title = "Clipboard History",
+                    subtitle = "Auto-sync text & images",
+                    icon = Icons.Rounded.ContentPaste,
+                    accentColor = RoyalViolet,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (device != null) {
+                        onNavigate(AppScreen.ClipboardHistory(device.id))
+                    }
+                }
             }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                QuickActionCard(
+                    title = "Task Manager",
+                    subtitle = "Durable task queue",
+                    icon = Icons.Rounded.Assignment,
+                    accentColor = NeonIndigo,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    onNavigate(AppScreen.TaskManager(device?.id))
+                }
+
+                QuickActionCard(
+                    title = "Live Screen Mirror",
+                    subtitle = "Low-latency stream",
+                    icon = Icons.Rounded.ScreenShare,
+                    accentColor = RubyOffline,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (device != null) {
+                        onNavigate(AppScreen.LiveScreen(device.id))
+                    }
+                }
+            }
+
 
             // Fun & App Management Controls
             Row(
@@ -517,7 +581,7 @@ fun DeviceDetailsScreen(
                     title = "Desktop Alert",
                     subtitle = "Show screen banner",
                     icon = Icons.Rounded.NotificationImportant,
-                    accentColor = ElectricCyan,
+                    accentColor = RoyalViolet,
                     modifier = Modifier.weight(1f)
                 ) {
                     showNotificationDialog = true
@@ -528,7 +592,7 @@ fun DeviceDetailsScreen(
             actionFeedback?.let { msg ->
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
-                    borderColor = ElectricCyan.copy(alpha = 0.4f),
+                    borderColor = RoyalViolet.copy(alpha = 0.4f),
                     contentPadding = PaddingValues(12.dp)
                 ) {
                     Row(
@@ -538,7 +602,7 @@ fun DeviceDetailsScreen(
                         Icon(
                             imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
-                            tint = ElectricCyan,
+                            tint = RoyalViolet,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
@@ -557,12 +621,12 @@ fun DeviceDetailsScreen(
                         repository.selectDevice(device)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan.copy(alpha = 0.25f)),
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet.copy(alpha = 0.25f)),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Rounded.Star, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Rounded.Star, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Set as Primary Controlling Device", color = ElectricCyan, fontWeight = FontWeight.Bold)
+                    Text("Set as Primary Controlling Device", color = RoyalViolet, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -609,7 +673,7 @@ fun DeviceDetailsScreen(
                             }
                         }),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ElectricCyan,
+                            focusedBorderColor = RoyalViolet,
                             unfocusedBorderColor = GlassBorderHighlight,
                             focusedTextColor = TextPrimaryDark,
                             unfocusedTextColor = TextPrimaryDark
@@ -652,7 +716,7 @@ fun DeviceDetailsScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan)
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet)
                 ) {
                     Text("Run Command", color = Color.White, fontWeight = FontWeight.Bold)
                 }
@@ -785,7 +849,7 @@ fun DeviceDetailsScreen(
                         placeholder = { Text("e.g. Meeting starting in 5 minutes!", color = TextMutedDark) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ElectricCyan,
+                            focusedBorderColor = RoyalViolet,
                             unfocusedBorderColor = GlassBorderHighlight,
                             focusedTextColor = TextPrimaryDark,
                             unfocusedTextColor = TextPrimaryDark
@@ -805,7 +869,7 @@ fun DeviceDetailsScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan)
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet)
                 ) {
                     Text("Send Alert", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
@@ -857,7 +921,7 @@ fun DeviceDetailsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.CameraAlt, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.CameraAlt, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 "Live Screenshot",
@@ -902,7 +966,7 @@ fun DeviceDetailsScreen(
                                     repository.clearScreenshot()
                                     onNavigate(AppScreen.ScreenshotViewer(b64, device?.name ?: "MacBook Pro"))
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                                colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet),
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier.weight(1.2f)
                             ) {
@@ -935,5 +999,13 @@ fun DeviceDetailsScreen(
                 }
             }
         }
+    }
+
+    if (showInviteDialog) {
+        InviteGuestDialog(
+            deviceId = deviceId,
+            repository = repository,
+            onDismiss = { showInviteDialog = false }
+        )
     }
 }

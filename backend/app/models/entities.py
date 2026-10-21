@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional
 from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.base import Base
@@ -103,6 +104,78 @@ class Automation(Base):
     scheduled_epoch: Mapped[float] = mapped_column(Float, default=0.0)
     is_one_shot: Mapped[bool] = mapped_column(Boolean, default=False)
     execution_count: Mapped[int] = mapped_column(Integer, default=0)
+    workflow_definition_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc)
     )
+
+class GuestInvitation(Base):
+    __tablename__ = "guest_invitations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    device_id: Mapped[str] = mapped_column(String(64), ForeignKey("devices.id"), nullable=False, index=True)
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    permitted_capabilities_json: Mapped[str] = mapped_column(Text, default='["screen.view"]')
+    allowed_staging_dir: Mapped[str] = mapped_column(String(512), default="")
+    expiry_seconds: Mapped[int] = mapped_column(Integer, default=1800)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    is_redeemed: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
+
+class GuestSession(Base):
+    __tablename__ = "guest_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    invitation_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("guest_invitations.id"), nullable=True)
+    device_id: Mapped[str] = mapped_column(String(64), ForeignKey("devices.id"), nullable=False, index=True)
+    guest_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    session_token_hash: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING_APPROVAL")  # PENDING_APPROVAL, APPROVED, REJECTED, EXPIRED, REVOKED
+    control_mode: Mapped[str] = mapped_column(String(32), default="view-only")  # view-only, shared-control, presenter
+    approved_capabilities_json: Mapped[str] = mapped_column(Text, default='["screen.view"]')
+    staging_dir: Mapped[str] = mapped_column(String(512), default="")
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    approved_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
+    last_active_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
+
+class StagedFile(Base):
+    __tablename__ = "staged_files"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    session_id: Mapped[str] = mapped_column(String(64), ForeignKey("guest_sessions.id"), nullable=False, index=True)
+    device_id: Mapped[str] = mapped_column(String(64), ForeignKey("devices.id"), nullable=False, index=True)
+    filename: Mapped[str] = mapped_column(String(256), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, default=0)
+    sha256_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="QUARANTINED")  # QUARANTINED, PROMOTED, REJECTED, DELETED
+    promoted_to_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    uploaded_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
+    promoted_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+
+class PrivacyShieldState(Base):
+    __tablename__ = "privacy_shield_states"
+
+    device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    is_lockdown: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_screen_paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_input_disabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_transfers_stopped: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
+    updated_by: Mapped[str] = mapped_column(String(64), default="owner")
+    pending_host_sync: Mapped[bool] = mapped_column(Boolean, default=False)
+

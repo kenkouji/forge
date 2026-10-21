@@ -23,6 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.remoteforge.app.data.model.AutomationItem
+import com.remoteforge.app.data.model.Device
+import com.remoteforge.app.data.model.WorkflowStepItem
+import com.remoteforge.app.data.model.WorkflowDefinitionItem
+import com.remoteforge.app.data.model.WorkflowDryRunResponse
+import com.remoteforge.app.data.model.WorkflowDryRunStepItem
 import com.remoteforge.app.data.repository.RemoteForgeRepository
 import com.remoteforge.app.ui.components.*
 import com.remoteforge.app.ui.theme.*
@@ -76,6 +81,23 @@ fun AutomationsScreen(
     // Discard Confirmation state
     var automationToDiscard by remember { mutableStateOf<AutomationItem?>(null) }
     var actionNotification by remember { mutableStateOf<String?>(null) }
+
+    // Visual Workflow Builder & Dry Run states
+    var dryRunTargetAutomation by remember { mutableStateOf<AutomationItem?>(null) }
+    var dryRunResponse by remember { mutableStateOf<WorkflowDryRunResponse?>(null) }
+    var isDryRunning by remember { mutableStateOf(false) }
+    var showWorkflowBuilderDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(dryRunTargetAutomation) {
+        val target = dryRunTargetAutomation
+        if (target != null) {
+            isDryRunning = true
+            dryRunResponse = repository.dryRunSavedAutomation(target.id)
+            isDryRunning = false
+        } else {
+            dryRunResponse = null
+        }
+    }
 
     val quickTemplates = remember {
         listOf(
@@ -131,7 +153,7 @@ fun AutomationsScreen(
                         Icon(
                             imageVector = Icons.Rounded.ArrowBack,
                             contentDescription = "Back",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
                 },
@@ -147,7 +169,7 @@ fun AutomationsScreen(
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = "Refresh",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
 
@@ -160,13 +182,26 @@ fun AutomationsScreen(
                             scheduleTargetDeviceId = selectedDevice?.id ?: devices.firstOrNull()?.id ?: ""
                             showScheduleDialog = true
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                        colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet),
                         shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Rounded.Alarm, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Schedule", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Icon(Icons.Rounded.Alarm, contentDescription = null, tint = Color.Black, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Schedule", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Button(
+                        onClick = { showWorkflowBuilderDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonIndigo),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Rounded.AccountTree, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Workflow", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
 
                     Spacer(modifier = Modifier.width(4.dp))
@@ -181,7 +216,7 @@ fun AutomationsScreen(
                             showCreateDialog = true
                         }
                     ) {
-                        Icon(Icons.Rounded.Add, contentDescription = "Add Routine", tint = ElectricCyan)
+                        Icon(Icons.Rounded.Add, contentDescription = "Add Routine", tint = RoyalViolet)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -218,7 +253,7 @@ fun AutomationsScreen(
                                 .weight(1f)
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { selectedTab = tab },
-                            color = if (isSelected) ElectricCyan.copy(alpha = 0.25f) else Color.Transparent
+                            color = if (isSelected) RoyalViolet.copy(alpha = 0.25f) else Color.Transparent
                         ) {
                             Box(
                                 modifier = Modifier.padding(vertical = 10.dp),
@@ -228,7 +263,7 @@ fun AutomationsScreen(
                                     text = tab.label,
                                     fontSize = 13.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) ElectricCyan else TextSecondaryDark
+                                    color = if (isSelected) RoyalViolet else TextSecondaryDark
                                 )
                             }
                         }
@@ -240,15 +275,15 @@ fun AutomationsScreen(
             actionNotification?.let { msg ->
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
-                    borderColor = ElectricCyan.copy(alpha = 0.5f),
+                    borderColor = RoyalViolet.copy(alpha = 0.5f),
                     contentPadding = PaddingValues(10.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(16.dp))
-                        Text(text = msg, color = ElectricCyan, fontSize = 12.sp)
+                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(16.dp))
+                        Text(text = msg, color = RoyalViolet, fontSize = 12.sp)
                     }
                 }
             }
@@ -290,13 +325,13 @@ fun AutomationsScreen(
                                             modifier = Modifier
                                                 .size(42.dp)
                                                 .clip(RoundedCornerShape(12.dp))
-                                                .background(ElectricCyan.copy(alpha = 0.2f)),
+                                                .background(RoyalViolet.copy(alpha = 0.2f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Alarm,
                                                 contentDescription = null,
-                                                tint = ElectricCyan,
+                                                tint = RoyalViolet,
                                                 modifier = Modifier.size(24.dp)
                                             )
                                         }
@@ -318,7 +353,7 @@ fun AutomationsScreen(
 
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
-                                        color = ElectricCyan
+                                        color = RoyalViolet
                                     ) {
                                         Text(
                                             text = "+ Schedule",
@@ -363,7 +398,7 @@ fun AutomationsScreen(
                                             Text("In 20 mins • Open browser & play", color = TextMutedDark, fontSize = 11.sp)
                                         }
                                     }
-                                    Icon(Icons.Rounded.PlayCircleOutline, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Rounded.PlayCircleOutline, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(20.dp))
                                 }
                             }
 
@@ -392,7 +427,7 @@ fun AutomationsScreen(
                                             Text("In 20 mins • Ready when you reach home", color = TextMutedDark, fontSize = 11.sp)
                                         }
                                     }
-                                    Icon(Icons.Rounded.PlayCircleOutline, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Rounded.PlayCircleOutline, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(20.dp))
                                 }
                             }
 
@@ -421,7 +456,7 @@ fun AutomationsScreen(
                                             Text("In 20 mins • Secure desktop session", color = TextMutedDark, fontSize = 11.sp)
                                         }
                                     }
-                                    Icon(Icons.Rounded.PlayCircleOutline, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Rounded.PlayCircleOutline, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(20.dp))
                                 }
                             }
 
@@ -458,7 +493,7 @@ fun AutomationsScreen(
                                                 modifier = Modifier
                                                     .size(36.dp)
                                                     .clip(RoundedCornerShape(10.dp))
-                                                    .background(ElectricCyan.copy(alpha = 0.15f)),
+                                                    .background(RoyalViolet.copy(alpha = 0.15f)),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
@@ -468,7 +503,7 @@ fun AutomationsScreen(
                                                         else -> Icons.Rounded.Analytics
                                                     },
                                                     contentDescription = null,
-                                                    tint = ElectricCyan,
+                                                    tint = RoyalViolet,
                                                     modifier = Modifier.size(20.dp)
                                                 )
                                             }
@@ -491,7 +526,7 @@ fun AutomationsScreen(
                                         Icon(
                                             imageVector = Icons.Rounded.AddCircleOutline,
                                             contentDescription = "Use Template",
-                                            tint = ElectricCyan,
+                                            tint = RoyalViolet,
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
@@ -528,10 +563,10 @@ fun AutomationsScreen(
                                                 modifier = Modifier
                                                     .size(32.dp)
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .background(ElectricCyan.copy(alpha = 0.2f)),
+                                                    .background(RoyalViolet.copy(alpha = 0.2f)),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Icon(Icons.Rounded.Alarm, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Rounded.Alarm, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(18.dp))
                                             }
                                             Column {
                                                 Text("Schedule a Delayed Task", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
@@ -540,11 +575,11 @@ fun AutomationsScreen(
                                         }
                                         Surface(
                                             shape = RoundedCornerShape(10.dp),
-                                            color = ElectricCyan.copy(alpha = 0.2f)
+                                            color = RoyalViolet.copy(alpha = 0.2f)
                                         ) {
                                             Text(
                                                 text = "+ Schedule",
-                                                color = ElectricCyan,
+                                                color = RoyalViolet,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 11.sp,
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -579,6 +614,9 @@ fun AutomationsScreen(
                                     },
                                     onDiscard = {
                                         automationToDiscard = item
+                                    },
+                                    onDryRun = {
+                                        dryRunTargetAutomation = item
                                     }
                                 )
                             }
@@ -662,7 +700,7 @@ fun AutomationsScreen(
             onDismissRequest = { showCreateDialog = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = ElectricCyan)
+                    Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = RoyalViolet)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("New Scheduled Automation", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimaryDark)
                 }
@@ -767,7 +805,7 @@ fun AutomationsScreen(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
                                         .clickable { newDeviceId = dev.id },
-                                    color = if (isSelected) ElectricCyan.copy(alpha = 0.2f) else GlassSurfaceElevated
+                                    color = if (isSelected) RoyalViolet.copy(alpha = 0.2f) else GlassSurfaceElevated
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(10.dp),
@@ -777,13 +815,13 @@ fun AutomationsScreen(
                                         Icon(
                                             Icons.Rounded.Computer,
                                             contentDescription = null,
-                                            tint = if (isSelected) ElectricCyan else TextSecondaryDark,
+                                            tint = if (isSelected) RoyalViolet else TextSecondaryDark,
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
                                             text = dev.name,
                                             fontSize = 12.sp,
-                                            color = if (isSelected) ElectricCyan else TextPrimaryDark,
+                                            color = if (isSelected) RoyalViolet else TextPrimaryDark,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
@@ -813,7 +851,7 @@ fun AutomationsScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan)
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet)
                 ) {
                     Text("Create Automation", color = Color.White, fontWeight = FontWeight.Bold)
                 }
@@ -834,7 +872,7 @@ fun AutomationsScreen(
             onDismissRequest = { showScheduleDialog = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Alarm, contentDescription = null, tint = ElectricCyan)
+                    Icon(Icons.Rounded.Alarm, contentDescription = null, tint = RoyalViolet)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Schedule Delayed Task", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimaryDark)
                 }
@@ -866,8 +904,8 @@ fun AutomationsScreen(
                                             scheduleQueryOrTarget = defaultVal
                                         }
                                     },
-                                color = if (isSelected) ElectricCyan.copy(alpha = 0.2f) else GlassSurfaceElevated,
-                                border = if (isSelected) BorderStroke(1.dp, ElectricCyan) else null
+                                color = if (isSelected) RoyalViolet.copy(alpha = 0.2f) else GlassSurfaceElevated,
+                                border = if (isSelected) BorderStroke(1.dp, RoyalViolet) else null
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -876,7 +914,7 @@ fun AutomationsScreen(
                                     Text(
                                         text = label,
                                         fontSize = 12.sp,
-                                        color = if (isSelected) ElectricCyan else TextPrimaryDark,
+                                        color = if (isSelected) RoyalViolet else TextPrimaryDark,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                     )
                                 }
@@ -965,7 +1003,7 @@ fun AutomationsScreen(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
                                         .clickable { scheduleTargetDeviceId = dev.id },
-                                    color = if (isSelected) ElectricCyan.copy(alpha = 0.2f) else GlassSurfaceElevated
+                                    color = if (isSelected) RoyalViolet.copy(alpha = 0.2f) else GlassSurfaceElevated
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(10.dp),
@@ -975,13 +1013,13 @@ fun AutomationsScreen(
                                         Icon(
                                             Icons.Rounded.Computer,
                                             contentDescription = null,
-                                            tint = if (isSelected) ElectricCyan else TextSecondaryDark,
+                                            tint = if (isSelected) RoyalViolet else TextSecondaryDark,
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
                                             text = dev.name,
                                             fontSize = 12.sp,
-                                            color = if (isSelected) ElectricCyan else TextPrimaryDark,
+                                            color = if (isSelected) RoyalViolet else TextPrimaryDark,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
@@ -1026,7 +1064,7 @@ fun AutomationsScreen(
                             actionNotification = if (ok) "Scheduled '$title' in $scheduleDelayMinutes mins!" else "Failed to schedule task"
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan)
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet)
                 ) {
                     Text("Schedule (in ${scheduleDelayMinutes}m)", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
@@ -1040,4 +1078,396 @@ fun AutomationsScreen(
             shape = RoundedCornerShape(22.dp)
         )
     }
+
+    // Dry Run Simulation Dialog
+    dryRunTargetAutomation?.let { auto ->
+        WorkflowDryRunDialog(
+            automation = auto,
+            response = dryRunResponse,
+            isLoading = isDryRunning,
+            onDismiss = { dryRunTargetAutomation = null }
+        )
+    }
+
+    // Visual Workflow Builder Dialog
+    if (showWorkflowBuilderDialog) {
+        VisualWorkflowBuilderDialog(
+            devices = devices,
+            selectedDeviceId = selectedDevice?.id ?: devices.firstOrNull()?.id ?: "",
+            repository = repository,
+            onDismiss = { showWorkflowBuilderDialog = false },
+            onCreated = { msg ->
+                showWorkflowBuilderDialog = false
+                actionNotification = msg
+            }
+        )
+    }
 }
+
+@Composable
+fun WorkflowDryRunDialog(
+    automation: AutomationItem,
+    response: WorkflowDryRunResponse?,
+    isLoading: Boolean,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Visibility, contentDescription = null, tint = NeonIndigo)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Dry-Run Simulation", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimaryDark)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Simulating '${automation.name}' execution plan against security policies without running commands on Mac:",
+                    fontSize = 12.sp,
+                    color = TextSecondaryDark
+                )
+
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = NeonIndigo, modifier = Modifier.size(32.dp))
+                    }
+                } else if (response != null) {
+                    val riskColor = when (response.riskAssessment) {
+                        "HIGH_RISK" -> RubyOffline
+                        "MEDIUM_RISK" -> AmberWarning
+                        else -> EmeraldOnline
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = riskColor.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, riskColor.copy(alpha = 0.4f))
+                        ) {
+                            Text(
+                                text = "Policy Risk: ${response.riskAssessment.replace("_", " ")}",
+                                color = riskColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        Text(
+                            text = "${response.stepsCount} step(s)",
+                            color = TextMutedDark,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    if (response.requiresHumanApproval) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = AmberWarning.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, AmberWarning.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Rounded.Security, contentDescription = null, tint = AmberWarning, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Requires explicit human confirmation for sensitive operations.", color = AmberWarning, fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    Text("SIMULATED PIPELINE GRAPH", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMutedDark)
+                    response.steps.forEachIndexed { index, step ->
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = ObsidianSurface,
+                            border = BorderStroke(1.dp, GlassBorderSubtle),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${index + 1}. ${step.name}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimaryDark
+                                    )
+                                    val stepRiskCol = if (step.riskLevel == "HIGH") RubyOffline else (if (step.riskLevel == "MEDIUM") AmberWarning else EmeraldOnline)
+                                    Text(step.riskLevel, color = stepRiskCol, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Text(step.simulationNote, color = TextMutedDark, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                } else {
+                    Text("Simulation returned no output or an error occurred.", color = RubyOffline, fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = NeonIndigo),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        containerColor = ObsidianBackground,
+        shape = RoundedCornerShape(18.dp)
+    )
+}
+
+@Composable
+fun VisualWorkflowBuilderDialog(
+    devices: List<Device>,
+    selectedDeviceId: String,
+    repository: RemoteForgeRepository,
+    onDismiss: () -> Unit,
+    onCreated: (String) -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var name by remember { mutableStateOf("Mac Health & Thermal Guard") }
+    var description by remember { mutableStateOf("Automated watchdog that monitors workstation health") }
+    var triggerType by remember { mutableStateOf("interval") }
+    var scheduleTime by remember { mutableStateOf("Every 30 minutes") }
+    var targetDeviceId by remember { mutableStateOf(selectedDeviceId) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    // Multi-step list
+    var steps by remember {
+        mutableStateOf(
+            listOf(
+                WorkflowStepItem(
+                    stepId = "s1",
+                    name = "Harvest Telemetry",
+                    type = "action",
+                    tool = "get_system_status"
+                ),
+                WorkflowStepItem(
+                    stepId = "s2",
+                    name = "Verify CPU Threshold",
+                    type = "condition",
+                    condition = mapOf("field" to "result.cpu_percent", "operator" to ">", "value" to 85.0),
+                    onTrueStep = "s3",
+                    onFalseStep = "s4"
+                ),
+                WorkflowStepItem(
+                    stepId = "s3",
+                    name = "High CPU Notification",
+                    type = "notification",
+                    notificationMessage = "Mac CPU utilization exceeded 85% threshold."
+                ),
+                WorkflowStepItem(
+                    stepId = "s4",
+                    name = "Complete Pipeline",
+                    type = "completion"
+                )
+            )
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.AccountTree, contentDescription = null, tint = NeonIndigo)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Visual Workflow Builder", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimaryDark)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Workflow Presets Selector
+                Text("VERIFIED PRESETS (1-TAP LOAD)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMutedDark)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        "Health Watchdog" to {
+                            name = "Workstation Health Watchdog"
+                            description = "Checks CPU & RAM and notifies if limits exceeded"
+                            triggerType = "interval"
+                            scheduleTime = "Every 30 minutes"
+                            steps = listOf(
+                                WorkflowStepItem("s1", "Harvest Telemetry", "action", "get_system_status"),
+                                WorkflowStepItem("s2", "Check CPU Threshold", "condition", condition = mapOf("field" to "result.cpu_percent", "operator" to ">", "value" to 85.0), onTrueStep = "s3", onFalseStep = "s4"),
+                                WorkflowStepItem("s3", "High CPU Alert", "notification", notificationMessage = "CPU load exceeded 85%"),
+                                WorkflowStepItem("s4", "Complete", "completion")
+                            )
+                        },
+                        "Build Guard" to {
+                            name = "Project Build Guard"
+                            description = "Compiles project and alerts on non-zero exit code"
+                            triggerType = "manual"
+                            scheduleTime = "On Demand"
+                            steps = listOf(
+                                WorkflowStepItem("b1", "Execute Build", "action", "build_project", arguments = mapOf("task_type" to "build", "max_lines" to 100)),
+                                WorkflowStepItem("b2", "Check Exit Code", "condition", condition = mapOf("field" to "result.exit_code", "operator" to "!=", "value" to 0), onTrueStep = "b3", onFalseStep = "b4"),
+                                WorkflowStepItem("b3", "Build Failure Alert", "notification", notificationMessage = "Project compilation failed with errors"),
+                                WorkflowStepItem("b4", "Complete", "completion")
+                            )
+                        },
+                        "Git Watcher" to {
+                            name = "Git Working Tree Watcher"
+                            description = "Notifies if working tree has pending uncommitted changes"
+                            triggerType = "interval"
+                            scheduleTime = "Every hour"
+                            steps = listOf(
+                                WorkflowStepItem("g1", "Query Git Status", "action", "git_status"),
+                                WorkflowStepItem("g2", "Check If Dirty", "condition", condition = mapOf("field" to "result.is_dirty", "operator" to "==", "value" to true), onTrueStep = "g3", onFalseStep = "g4"),
+                                WorkflowStepItem("g3", "Pending Changes Alert", "notification", notificationMessage = "Uncommitted modifications detected in repo"),
+                                WorkflowStepItem("g4", "Complete", "completion")
+                            )
+                        }
+                    ).forEach { (label, onClick) ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = ObsidianSurface,
+                            border = BorderStroke(1.dp, GlassBorderSubtle),
+                            modifier = Modifier.clickable { onClick() }
+                        ) {
+                            Text(label, color = RoyalViolet, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
+                        }
+                    }
+                }
+
+                // Name & Description
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Workflow Title") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                // Trigger Selector
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("manual" to "Manual", "interval" to "Interval", "schedule" to "Daily").forEach { (type, lbl) ->
+                        val isSel = triggerType == type
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSel) NeonIndigo.copy(alpha = 0.25f) else ObsidianSurface,
+                            border = BorderStroke(1.dp, if (isSel) NeonIndigo else GlassBorderSubtle),
+                            modifier = Modifier.weight(1f).clickable { triggerType = type }
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 8.dp)) {
+                                Text(lbl, color = if (isSel) Color.White else TextMutedDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                // Steps List
+                Text("PIPELINE STEPS (${steps.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextMutedDark)
+                steps.forEachIndexed { index, step ->
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = ObsidianSurface,
+                        border = BorderStroke(1.dp, GlassBorderSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                val typeIcon = when (step.type) {
+                                    "action" -> Icons.Rounded.Build
+                                    "condition" -> Icons.Rounded.AltRoute
+                                    "delay" -> Icons.Rounded.HourglassBottom
+                                    "notification" -> Icons.Rounded.Notifications
+                                    else -> Icons.Rounded.CheckCircle
+                                }
+                                Icon(typeIcon, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(16.dp))
+                                Column {
+                                    Text("${index + 1}. ${step.name}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimaryDark)
+                                    Text(
+                                        text = if (step.tool != null) "Tool: ${step.tool}" else "Type: ${step.type.uppercase()}",
+                                        color = TextMutedDark,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+
+                            if (steps.size > 2) {
+                                IconButton(
+                                    onClick = { steps = steps.filterIndexed { i, _ -> i != index } },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(Icons.Rounded.RemoveCircleOutline, contentDescription = "Delete", tint = RubyOffline, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        isSaving = true
+                        coroutineScope.launch {
+                            val ok = repository.createCustomWorkflow(
+                                name = name,
+                                description = description,
+                                triggerType = triggerType,
+                                scheduleTime = scheduleTime,
+                                deviceId = targetDeviceId,
+                                steps = steps
+                            )
+                            isSaving = false
+                            onCreated(if (ok) "Workflow '$name' deployed!" else "Failed to deploy workflow")
+                        }
+                    }
+                },
+                enabled = !isSaving && name.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = NeonIndigo),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(if (isSaving) "Deploying..." else "Deploy Workflow", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextSecondaryDark)
+            }
+        },
+        containerColor = ObsidianBackground,
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+

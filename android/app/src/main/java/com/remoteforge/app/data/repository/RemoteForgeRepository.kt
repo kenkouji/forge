@@ -24,6 +24,11 @@ import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 
 import android.util.Log
+import android.content.ClipboardManager
+import android.content.ClipData
+import android.widget.Toast
+import android.os.Handler
+import android.os.Looper
 import com.remoteforge.app.data.vpn.VpnLifecycleManager
 import com.remoteforge.app.data.service.RemoteForgeConnectionService
 
@@ -126,7 +131,14 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
         }
         // Kick off automatic background connection on launch
         triggerAutoConnect()
+        setupClipboardSyncChannel()
     }
+
+    private val _clipboardHistory = MutableStateFlow<List<ClipboardItem>>(emptyList())
+    val clipboardHistory: StateFlow<List<ClipboardItem>> = _clipboardHistory
+
+    val isClipboardAutoSyncEnabled = MutableStateFlow(true)
+    private var lastLocalClipboardHash: String? = null
 
     fun triggerAutoConnect() {
         connectJob?.cancel()
@@ -967,7 +979,7 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
         val token = networkConfig.authToken ?: return@withContext emptyList()
         val service = networkConfig.apiService ?: return@withContext emptyList()
         try {
-            val res = service.getTasks("Bearer $token", limit = 20)
+            val res = service.getTasks("Bearer $token", limit = 50)
             if (res.isSuccessful && res.body() != null) {
                 val list = res.body()!!
                 _tasks.value = list
@@ -978,6 +990,355 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
             emptyList()
         }
     }
+
+    suspend fun cancelTask(taskId: String): Result<TaskItem> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext Result.failure(IllegalStateException("Not authenticated"))
+        val service = networkConfig.apiService ?: return@withContext Result.failure(IllegalStateException("API service uninitialized"))
+        try {
+            val res = service.cancelTask("Bearer $token", taskId)
+            if (res.isSuccessful && res.body() != null) {
+                val updated = res.body()!!
+                _tasks.value = _tasks.value.map { if (it.id == taskId) updated else it }
+                Result.success(updated)
+            } else {
+                val err = res.errorBody()?.string() ?: "HTTP ${res.code()}"
+                Result.failure(RuntimeException(err))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun retryTask(taskId: String): Result<TaskItem> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext Result.failure(IllegalStateException("Not authenticated"))
+        val service = networkConfig.apiService ?: return@withContext Result.failure(IllegalStateException("API service uninitialized"))
+        try {
+            val res = service.retryTask("Bearer $token", taskId)
+            if (res.isSuccessful && res.body() != null) {
+                val newTask = res.body()!!
+                _tasks.value = listOf(newTask) + _tasks.value
+                Result.success(newTask)
+            } else {
+                val err = res.errorBody()?.string() ?: "HTTP ${res.code()}"
+                Result.failure(RuntimeException(err))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun cleanupTasks(keepCount: Int = 50): Result<Map<String, Any>> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext Result.failure(IllegalStateException("Not authenticated"))
+        val service = networkConfig.apiService ?: return@withContext Result.failure(IllegalStateException("API service uninitialized"))
+        try {
+            val res = service.cleanupTasks("Bearer $token", keepCount)
+            if (res.isSuccessful && res.body() != null) {
+                refreshTasks()
+                Result.success(res.body()!!)
+            } else {
+                val err = res.errorBody()?.string() ?: "HTTP ${res.code()}"
+                Result.failure(RuntimeException(err))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Developer Workstation Operations
+    suspend fun getGitStatus(deviceId: String, projectPath: String? = null): Result<GitStatusInfo> = withContext(Dispatchers.IO) {
+        try {
+            val args = mutableMapOf<String, Any>()
+            if (!projectPath.isNullOrBlank()) {
+                args["path"] = projectPath
+            }
+            val res = executeCommand(deviceId = deviceId, tool = "git_status", args = args)
+            if (res.status == "COMPLETED" && res.result != null) {
+                val gson = com.google.gson.Gson()
+                val json = gson.toJson(res.result)
+                val status = gson.fromJson(json, GitStatusInfo::class.java)
+                Result.success(status)
+            } else {
+                Result.failure(RuntimeException(res.error ?: "Failed to retrieve Git status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getGitDiff(
+        deviceId: String,
+        projectPath: String? = null,
+        filePath: String? = null,
+        staged: Boolean = false
+    ): Result<GitDiffInfo> = withContext(Dispatchers.IO) {
+        try {
+            val args = mutableMapOf<String, Any>("staged" to staged)
+            if (!projectPath.isNullOrBlank()) args["path"] = projectPath
+            if (!filePath.isNullOrBlank()) args["file_path"] = filePath
+
+            val res = executeCommand(deviceId = deviceId, tool = "git_diff", args = args)
+            if (res.status == "COMPLETED" && res.result != null) {
+                val gson = com.google.gson.Gson()
+                val json = gson.toJson(res.result)
+                val diffInfo = gson.fromJson(json, GitDiffInfo::class.java)
+                Result.success(diffInfo)
+            } else {
+                Result.failure(RuntimeException(res.error ?: "Failed to retrieve Git diff"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun buildProject(
+        deviceId: String,
+        projectPath: String? = null,
+        taskType: String = "build",
+        customCmd: String? = null,
+        timeoutSec: Int = 60
+    ): Result<ProjectBuildResult> = withContext(Dispatchers.IO) {
+        try {
+            val args = mutableMapOf<String, Any>(
+                "task_type" to taskType,
+                "timeout_seconds" to timeoutSec
+            )
+            if (!projectPath.isNullOrBlank()) args["path"] = projectPath
+            if (!customCmd.isNullOrBlank()) args["command"] = customCmd
+
+            val res = executeCommand(deviceId = deviceId, tool = "build_project", args = args)
+            if (res.status == "COMPLETED" && res.result != null) {
+                val gson = com.google.gson.Gson()
+                val json = gson.toJson(res.result)
+                val buildResult = gson.fromJson(json, ProjectBuildResult::class.java)
+                Result.success(buildResult)
+            } else {
+                Result.failure(RuntimeException(res.error ?: "Build task failed"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMacClipboard(deviceId: String): Result<ClipboardInfo> = withContext(Dispatchers.IO) {
+        try {
+            val res = executeCommand(deviceId = deviceId, tool = "get_clipboard", args = emptyMap())
+            if (res.status == "COMPLETED" && res.result != null) {
+                val gson = com.google.gson.Gson()
+                val json = gson.toJson(res.result)
+                val clip = gson.fromJson(json, ClipboardInfo::class.java)
+                Result.success(clip)
+            } else {
+                Result.failure(RuntimeException(res.error ?: "Failed to read clipboard"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun setMacClipboard(deviceId: String, text: String): Result<ClipboardInfo> = withContext(Dispatchers.IO) {
+        try {
+            val res = executeCommand(deviceId = deviceId, tool = "set_clipboard", args = mapOf("text" to text))
+            if (res.status == "COMPLETED" && res.result != null) {
+                val gson = com.google.gson.Gson()
+                val json = gson.toJson(res.result)
+                val clip = gson.fromJson(json, ClipboardInfo::class.java)
+                Result.success(clip)
+            } else {
+                Result.failure(RuntimeException(res.error ?: "Failed to set clipboard"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Universal Clipboard Operations
+    private fun setupClipboardSyncChannel() {
+        val originalHandler = wsClient.onEventReceived
+        wsClient.onEventReceived = { type, payload ->
+            originalHandler?.invoke(type, payload)
+            if (type == "clipboard_sync" && payload != null) {
+                handleIncomingClipboardSync(payload)
+            }
+        }
+
+        // Listen for phone clipboard copies
+        try {
+            val clipMgr = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            clipMgr?.addPrimaryClipChangedListener {
+                if (!isClipboardAutoSyncEnabled.value) return@addPrimaryClipChangedListener
+                val clip = clipMgr.primaryClip ?: return@addPrimaryClipChangedListener
+                if (clip.itemCount > 0) {
+                    val item = clip.getItemAt(0)
+                    val text = item.text?.toString() ?: item.coerceToText(context)?.toString()
+                    if (!text.isNullOrBlank()) {
+                        val hash = text.hashCode().toString()
+                        if (hash != lastLocalClipboardHash) {
+                            lastLocalClipboardHash = hash
+                            repositoryScope.launch {
+                                syncLocalClipboard("text", text = text)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("RemoteForgeRepository", "Could not attach phone clipboard listener: ${e.message}")
+        }
+    }
+
+    private fun handleIncomingClipboardSync(payload: Map<String, Any>) {
+        try {
+            val rawItem = payload["item"] as? Map<String, Any> ?: return
+            val gson = com.google.gson.Gson()
+            val json = gson.toJson(rawItem)
+            val item = gson.fromJson(json, ClipboardItem::class.java)
+
+            // Deduplicate and update history
+            val current = _clipboardHistory.value.toMutableList()
+            current.removeAll { it.id == item.id }
+            current.add(0, item)
+            _clipboardHistory.value = current
+
+            // If auto-sync is enabled and item came from laptop/mac, copy to phone's clipboard
+            if (isClipboardAutoSyncEnabled.value && item.sourceDevice != "phone") {
+                if (item.contentType == "text" && !item.textContent.isNullOrBlank()) {
+                    lastLocalClipboardHash = item.textContent.hashCode().toString()
+                    Handler(Looper.getMainLooper()).post {
+                        try {
+                            val clipMgr = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                            val clip = ClipData.newPlainText("RemoteForge Sync", item.textContent)
+                            clipMgr?.setPrimaryClip(clip)
+                            Toast.makeText(context, "Copied from Mac to Phone", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Log.w("RemoteForgeRepository", "Failed setting phone clipboard: ${e.message}")
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("RemoteForgeRepository", "Error handling clipboard_sync: ${e.message}")
+        }
+    }
+
+    suspend fun refreshClipboardHistory(type: String? = null): List<ClipboardItem> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext emptyList()
+        val service = networkConfig.apiService ?: return@withContext emptyList()
+        try {
+            val res = service.getClipboardHistory("Bearer $token", limit = 50, type = type)
+            if (res.isSuccessful && res.body() != null) {
+                val list = res.body()!!
+                _clipboardHistory.value = list
+                list
+            } else {
+                _clipboardHistory.value
+            }
+        } catch (e: Exception) {
+            Log.e("RemoteForgeRepository", "Error fetching clipboard history: ${e.message}")
+            _clipboardHistory.value
+        }
+    }
+
+    suspend fun syncLocalClipboard(
+        contentType: String,
+        text: String? = null,
+        imageBase64: String? = null,
+        preview: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val req = ClipboardSyncRequest(
+                contentType = contentType,
+                text = text,
+                imageBase64 = imageBase64,
+                sourceDevice = "phone",
+                preview = preview
+            )
+            val res = service.syncClipboardItem("Bearer $token", req)
+            if (res.isSuccessful) {
+                refreshClipboardHistory()
+                true
+            } else false
+        } catch (e: Exception) {
+            Log.e("RemoteForgeRepository", "Failed to sync local clipboard: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun copyClipboardToDevice(
+        deviceId: String,
+        contentType: String,
+        text: String? = null,
+        imageBase64: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val req = ClipboardCopyRequest(
+                deviceId = deviceId,
+                contentType = contentType,
+                text = text,
+                imageBase64 = imageBase64
+            )
+            val res = service.copyClipboardToDevice("Bearer $token", req)
+            if (res.isSuccessful) {
+                refreshClipboardHistory()
+                true
+            } else false
+        } catch (e: Exception) {
+            Log.e("RemoteForgeRepository", "Failed to copy to device: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun clearClipboardHistory(): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.clearClipboardHistory("Bearer $token")
+            if (res.isSuccessful) {
+                _clipboardHistory.value = emptyList()
+                true
+            } else false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun deleteClipboardItem(itemId: String): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.deleteClipboardItem("Bearer $token", itemId)
+            if (res.isSuccessful) {
+                _clipboardHistory.value = _clipboardHistory.value.filter { it.id != itemId }
+                true
+            } else false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun copyToPhoneClipboard(item: ClipboardItem) {
+        if (item.contentType == "text" && !item.textContent.isNullOrBlank()) {
+            lastLocalClipboardHash = item.textContent.hashCode().toString()
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    val clipMgr = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    val clip = ClipData.newPlainText("RemoteForge", item.textContent)
+                    clipMgr?.setPrimaryClip(clip)
+                    Toast.makeText(context, "Copied to phone clipboard", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Log.w("RemoteForgeRepository", "Failed setting phone clipboard: ${e.message}")
+                }
+            }
+        } else if (item.contentType == "image" && !item.imageBase64.isNullOrBlank()) {
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context, "Image item saved in history", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
 
     // Automations Management
     suspend fun refreshAutomations(): List<AutomationItem> = withContext(Dispatchers.IO) {
@@ -1198,6 +1559,263 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
             )
         } finally {
             _isAILoading.value = false
+        }
+    }
+
+    // Workflow Engine & Templates
+    suspend fun getWorkflowTemplates(): List<WorkflowDefinitionItem> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext emptyList()
+        val service = networkConfig.apiService ?: return@withContext emptyList()
+        try {
+            val res = service.getWorkflowTemplates("Bearer $token")
+            if (res.isSuccessful) res.body() ?: emptyList() else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun dryRunWorkflow(workflow: Map<String, Any>): WorkflowDryRunResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.dryRunWorkflow("Bearer $token", workflow)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun dryRunSavedAutomation(id: String): WorkflowDryRunResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.dryRunSavedAutomation("Bearer $token", id)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun cancelWorkflowExecution(id: String): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.cancelWorkflowExecution("Bearer $token", id)
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getWorkflowExecutions(): List<WorkflowExecutionItem> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext emptyList()
+        val service = networkConfig.apiService ?: return@withContext emptyList()
+        try {
+            val res = service.getWorkflowExecutions("Bearer $token")
+            if (res.isSuccessful) res.body() ?: emptyList() else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun createCustomWorkflow(
+        name: String,
+        description: String,
+        triggerType: String,
+        scheduleTime: String,
+        deviceId: String,
+        steps: List<WorkflowStepItem>
+    ): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val targetDev = if (deviceId.isNotBlank()) deviceId else _selectedDevice.value?.id ?: ""
+            val wfDef = WorkflowDefinitionItem(
+                name = name,
+                description = description,
+                triggerType = triggerType,
+                scheduleTime = scheduleTime,
+                targetDeviceId = targetDev,
+                steps = steps
+            )
+            val wfJson = com.google.gson.Gson().toJson(wfDef)
+            val req = AutomationCreateRequest(
+                name = name,
+                description = description,
+                scheduleTime = scheduleTime,
+                triggerType = triggerType,
+                actionTool = steps.firstOrNull { it.type == "action" }?.tool ?: "lock_pc",
+                targetDeviceId = targetDev,
+                workflowDefinitionJson = wfJson
+            )
+            val res = service.createAutomation("Bearer $token", req)
+            if (res.isSuccessful) {
+                refreshAutomations()
+                true
+            } else false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Screen Streaming
+    fun getStreamUrl(deviceId: String): String {
+        val base = networkConfig.serverUrl.removeSuffix("/")
+        val token = networkConfig.authToken ?: ""
+        return "$base/api/stream/live/$deviceId?token=$token"
+    }
+
+    suspend fun controlScreenStream(deviceId: String, action: String, width: Int? = null, quality: Int? = null, fps: Int? = null): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.controlScreenStream("Bearer $token", deviceId, StreamControlRequest(action, width, quality, fps))
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getScreenStreamStatus(deviceId: String): StreamStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.getScreenStreamStatus("Bearer $token", deviceId)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // --- Guest Access, Co-Control & Privacy Shield ---
+    suspend fun createGuestInvitation(deviceId: String, capabilities: List<String>, expiresInMinutes: Int = 15): GuestInvitationResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.createGuestInvitation("Bearer $token", GuestInvitationCreateRequest(deviceId, capabilities, expiresInMinutes))
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun listGuestInvitations(deviceId: String): List<GuestInvitationResponse> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext emptyList()
+        val service = networkConfig.apiService ?: return@withContext emptyList()
+        try {
+            val res = service.listGuestInvitations("Bearer $token", deviceId)
+            if (res.isSuccessful) res.body() ?: emptyList() else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun revokeGuestInvitation(invitationId: String): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.revokeGuestInvitation("Bearer $token", invitationId)
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun listGuestSessions(deviceId: String): List<GuestSessionResponse> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext emptyList()
+        val service = networkConfig.apiService ?: return@withContext emptyList()
+        try {
+            val res = service.listGuestSessions("Bearer $token", deviceId)
+            if (res.isSuccessful) res.body() ?: emptyList() else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun approveGuestSession(sessionId: String, capabilities: List<String>, controlMode: String = "shared-control", durationMinutes: Int = 30): GuestSessionResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.approveGuestSession(
+                "Bearer $token",
+                sessionId,
+                GuestApprovalRequest(
+                    approve = true,
+                    approvedCapabilities = capabilities,
+                    capabilities = capabilities,
+                    controlMode = controlMode,
+                    durationMinutes = durationMinutes
+                )
+            )
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun revokeGuestSession(sessionId: String, reason: String = "Revoked by owner"): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.revokeGuestSession("Bearer $token", sessionId, reason)
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getPrivacyShield(deviceId: String): PrivacyShieldResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.getPrivacyShield("Bearer $token", deviceId)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun updatePrivacyShield(deviceId: String, update: PrivacyShieldUpdateRequest): PrivacyShieldResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.updatePrivacyShield("Bearer $token", deviceId, update)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun listStagedFiles(deviceId: String? = null): List<StagedFileResponse> = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext emptyList()
+        val service = networkConfig.apiService ?: return@withContext emptyList()
+        try {
+            val res = service.listStagedFiles("Bearer $token", deviceId)
+            if (res.isSuccessful) res.body() ?: emptyList() else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun promoteStagedFile(fileId: String, destinationDir: String): StagedFileResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.promoteStagedFile("Bearer $token", fileId, PromoteFileRequest(destinationDir))
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun deleteStagedFile(fileId: String): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.deleteStagedFile("Bearer $token", fileId)
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
         }
     }
 }

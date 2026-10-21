@@ -56,6 +56,44 @@ class NetworkConfig(private val context: Context) {
         get() = prefs.getBoolean("auto_vpn_enabled", true)
         set(value) = prefs.edit().putBoolean("auto_vpn_enabled", value).apply()
 
+    private val _appearanceThemeFlow = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("appearance_theme", "DARK") ?: "DARK")
+    val appearanceThemeFlow: kotlinx.coroutines.flow.StateFlow<String> = _appearanceThemeFlow
+
+    var appearanceTheme: String
+        get() = prefs.getString("appearance_theme", "DARK") ?: "DARK"
+        set(value) {
+            prefs.edit().putString("appearance_theme", value).apply()
+            _appearanceThemeFlow.value = value
+        }
+
+    private val _animationIntensityFlow = kotlinx.coroutines.flow.MutableStateFlow(prefs.getString("animation_intensity", "FULL") ?: "FULL")
+    val animationIntensityFlow: kotlinx.coroutines.flow.StateFlow<String> = _animationIntensityFlow
+
+    var animationIntensity: String
+        get() = prefs.getString("animation_intensity", "FULL") ?: "FULL"
+        set(value) {
+            prefs.edit().putString("animation_intensity", value).apply()
+            _animationIntensityFlow.value = value
+        }
+
+    private val _reducedMotionFlow = kotlinx.coroutines.flow.MutableStateFlow(prefs.getBoolean("reduced_motion", false))
+    val reducedMotionFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _reducedMotionFlow
+
+    var reducedMotion: Boolean
+        get() = prefs.getBoolean("reduced_motion", false)
+        set(value) {
+            prefs.edit().putBoolean("reduced_motion", value).apply()
+            _reducedMotionFlow.value = value
+        }
+
+    var soundEffects: Boolean
+        get() = prefs.getBoolean("sound_effects", false)
+        set(value) = prefs.edit().putBoolean("sound_effects", value).apply()
+
+    var bootSequenceSeen: Boolean
+        get() = prefs.getBoolean("boot_sequence_seen", false)
+        set(value) = prefs.edit().putBoolean("boot_sequence_seen", value).apply()
+
     fun clearSession() {
         prefs.edit()
             .remove("auth_token")

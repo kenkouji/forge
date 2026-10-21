@@ -158,3 +158,14 @@ class FilesystemSecurityEnforcer:
 
         # 4. Reject symlink escapes (os.path.realpath already resolved target, which was checked above)
         return True, canonical, "Access granted."
+
+    def assert_path_allowed(self, target_path: str) -> str:
+        """
+        Validates target_path against security allowlist.
+        Returns canonical path if granted, or raises SecurityPolicyException.
+        """
+        allowed, canonical, msg = self.validate_file_access(target_path)
+        if not allowed:
+            raise SecurityPolicyException(msg)
+        return canonical
+

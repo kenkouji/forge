@@ -55,4 +55,8 @@ android/build/
 local.properties
 *.apk
 *.aab
-
+# Testing artifacts & logs
+/*.png
+/*.log
+benchmark_baseline.json
+phone_benchmark_*.json

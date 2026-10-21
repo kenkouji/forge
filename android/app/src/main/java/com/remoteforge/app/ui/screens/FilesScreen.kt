@@ -128,6 +128,8 @@ fun FilesScreen(
         }
     }
 
+    val forgeColors = ForgeTheme.colors
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -148,7 +150,7 @@ fun FilesScreen(
                 Text(
                     text = "RemoteForge",
                     style = MaterialTheme.typography.labelMedium,
-                    color = TextRestrainedGray,
+                    color = forgeColors.textMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -157,7 +159,7 @@ fun FilesScreen(
                     text = "File Explorer",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
-                    color = TextPureWhite,
+                    color = forgeColors.textPrimary,
                     fontSize = 28.sp
                 )
                 val breadcrumb = if (!currentPath.isNullOrBlank()) {
@@ -168,7 +170,7 @@ fun FilesScreen(
                 Text(
                     text = breadcrumb,
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextRestrainedGray,
+                    color = forgeColors.textMuted,
                     fontSize = 12.sp,
                     maxLines = 1
                 )
@@ -179,7 +181,7 @@ fun FilesScreen(
                     Icon(
                         imageVector = Icons.Rounded.Refresh,
                         contentDescription = "Refresh",
-                        tint = AccentCyan,
+                        tint = if (forgeColors.isDark) LavenderAccent else LightAccent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -192,15 +194,15 @@ fun FilesScreen(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Search files and folders...", color = TextDarkMuted, fontSize = 13.sp) },
+            placeholder = { Text("Search files and folders...", color = forgeColors.textMuted, fontSize = 13.sp) },
             leadingIcon = {
-                Icon(Icons.Rounded.Search, contentDescription = "Search", tint = TextRestrainedGray, modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.Search, contentDescription = "Search", tint = forgeColors.textMuted, modifier = Modifier.size(18.dp))
             },
             trailingIcon = {
                 if (isSearching) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
-                        color = AccentCyan,
+                        color = if (forgeColors.isDark) RoyalViolet else LightAccent,
                         strokeWidth = 2.dp
                     )
                 } else if (searchQuery.isNotEmpty()) {
@@ -208,19 +210,19 @@ fun FilesScreen(
                         searchQuery = ""
                         searchResults = null
                     }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear", tint = TextRestrainedGray, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Rounded.Close, contentDescription = "Clear", tint = forgeColors.textMuted, modifier = Modifier.size(16.dp))
                     }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = ObsidianSurfaceElevated,
-                unfocusedContainerColor = ObsidianSurfaceElevated,
-                unfocusedBorderColor = ObsidianBorderSubtle,
-                focusedBorderColor = AccentCyan,
-                focusedTextColor = TextPureWhite,
-                unfocusedTextColor = TextPureWhite
+                focusedContainerColor = forgeColors.surfaceSecondary,
+                unfocusedContainerColor = forgeColors.surfaceSecondary,
+                unfocusedBorderColor = forgeColors.borderSubtle,
+                focusedBorderColor = if (forgeColors.isDark) RoyalViolet else LightAccent,
+                focusedTextColor = forgeColors.textPrimary,
+                unfocusedTextColor = forgeColors.textPrimary
             ),
             singleLine = true
         )
@@ -237,8 +239,8 @@ fun FilesScreen(
             quickRoots.forEach { root ->
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = ObsidianSurfaceElevated,
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, ObsidianBorderSubtle),
+                    color = forgeColors.surfaceSecondary,
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, forgeColors.borderSubtle),
                     modifier = Modifier.clickable {
                         loadPath(root)
                     }
@@ -248,8 +250,8 @@ fun FilesScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(Icons.Rounded.Folder, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(14.dp))
-                        Text(text = root, color = TextPureWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Icon(Icons.Rounded.Folder, contentDescription = null, tint = if (forgeColors.isDark) LavenderAccent else LightAccent, modifier = Modifier.size(14.dp))
+                        Text(text = root, color = forgeColors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -303,8 +305,8 @@ fun FilesScreen(
                         }
                     }
                 ) {
-                    Icon(Icons.Rounded.ArrowUpward, contentDescription = "Parent Directory", tint = AccentCyan, modifier = Modifier.size(14.dp))
-                    Text("Up", color = AccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Rounded.ArrowUpward, contentDescription = "Parent Directory", tint = RoyalViolet, modifier = Modifier.size(14.dp))
+                    Text("Up", color = RoyalViolet, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -325,7 +327,7 @@ fun FilesScreen(
         // ==========================================
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AccentCyan)
+                CircularProgressIndicator(color = RoyalViolet)
             }
         } else if (displayedItems.isEmpty()) {
             Box(
@@ -358,8 +360,8 @@ fun FilesScreen(
                                 }
                             },
                         shape = RoundedCornerShape(16.dp),
-                        color = ObsidianSurfaceElevated,
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, ObsidianBorderSubtle)
+                        color = forgeColors.surfaceSecondary,
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, forgeColors.borderSubtle)
                     ) {
                         Row(
                             modifier = Modifier
@@ -378,7 +380,7 @@ fun FilesScreen(
                                 Column {
                                     Text(
                                         text = item.name,
-                                        color = TextPureWhite,
+                                        color = forgeColors.textPrimary,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
@@ -386,7 +388,7 @@ fun FilesScreen(
                                     )
                                     Text(
                                         text = if (item.isDir) "Folder" else "${formatFileSize(item.sizeBytes)} • ${item.modifiedAt?.take(10) ?: "Recent"}",
-                                        color = TextRestrainedGray,
+                                        color = forgeColors.textMuted,
                                         fontSize = 11.sp
                                     )
                                 }
@@ -406,7 +408,7 @@ fun FilesScreen(
                                     Icon(
                                         imageVector = Icons.Rounded.Download,
                                         contentDescription = "Download",
-                                        tint = AccentCyan,
+                                        tint = if (forgeColors.isDark) LavenderAccent else LightAccent,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -414,7 +416,7 @@ fun FilesScreen(
                                 Icon(
                                     imageVector = Icons.Rounded.ChevronRight,
                                     contentDescription = null,
-                                    tint = TextDarkMuted,
+                                    tint = forgeColors.textMuted,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }

@@ -52,8 +52,8 @@ fun UniversalTransferScreen(
         mutableStateOf(devices.firstOrNull { it.id == preselectedSourceDevice } ?: selectedDevice)
     }
     var sourcePath by remember { mutableStateOf(preselectedFile ?: "") }
-    var destinationPath by remember { mutableStateOf("/Users/g.aasish/Downloads") }
-    var isTransferringToPhone by remember { mutableStateOf(true) }
+    var destinationPath by remember { mutableStateOf("/Users/g.aasish/Desktop") }
+    var isTransferringToPhone by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
 
@@ -121,7 +121,7 @@ fun UniversalTransferScreen(
                         Icon(
                             imageVector = Icons.Rounded.ArrowBack,
                             contentDescription = "Back",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
                 },
@@ -155,7 +155,7 @@ fun UniversalTransferScreen(
                             text = if (isTransferringToPhone) "PC → Android Phone" else "Android Phone → PC",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = ElectricCyan
+                            color = RoyalViolet
                         )
                         Text(
                             text = if (isTransferringToPhone) "Stream file from PC directly to Phone" else "Push file to authorized PC directory",
@@ -168,12 +168,12 @@ fun UniversalTransferScreen(
                         onClick = { isTransferringToPhone = !isTransferringToPhone },
                         modifier = Modifier
                             .clip(CircleShape)
-                            .background(ElectricCyan.copy(alpha = 0.15f))
+                            .background(RoyalViolet.copy(alpha = 0.15f))
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.SwapHoriz,
                             contentDescription = "Switch Direction",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
                 }
@@ -202,7 +202,7 @@ fun UniversalTransferScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { sourceDevice = dev },
-                        borderColor = if (isSelected) ElectricCyan else GlassBorderSubtle,
+                        borderColor = if (isSelected) RoyalViolet else GlassBorderSubtle,
                         contentPadding = PaddingValues(12.dp)
                     ) {
                         Row(
@@ -218,10 +218,10 @@ fun UniversalTransferScreen(
                                     modifier = Modifier
                                         .size(34.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) ElectricCyan.copy(alpha = 0.2f) else GlassSurfaceElevated),
+                                        .background(if (isSelected) RoyalViolet.copy(alpha = 0.2f) else GlassSurfaceElevated),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Rounded.Computer, contentDescription = null, tint = if (isSelected) ElectricCyan else TextMutedDark, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Rounded.Computer, contentDescription = null, tint = if (isSelected) RoyalViolet else TextMutedDark, modifier = Modifier.size(18.dp))
                                 }
 
                                 Column {
@@ -251,15 +251,15 @@ fun UniversalTransferScreen(
             if (!isTransferringToPhone) {
                 Button(
                     onClick = { filePickerLauncher.launch("*/*") },
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan.copy(alpha = 0.2f)),
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet.copy(alpha = 0.2f)),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Rounded.AttachFile, contentDescription = null, tint = ElectricCyan)
+                    Icon(Icons.Rounded.AttachFile, contentDescription = null, tint = RoyalViolet)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (selectedPhoneFileName != null) "Change Phone File" else "Select File from Android Phone",
-                        color = ElectricCyan,
+                        color = RoyalViolet,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -267,7 +267,7 @@ fun UniversalTransferScreen(
                 selectedPhoneFileName?.let { fname ->
                     GlassCard(
                         modifier = Modifier.fillMaxWidth(),
-                        borderColor = ElectricCyan.copy(alpha = 0.4f),
+                        borderColor = RoyalViolet.copy(alpha = 0.4f),
                         contentPadding = PaddingValues(12.dp)
                     ) {
                         Row(
@@ -306,7 +306,7 @@ fun UniversalTransferScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ElectricCyan,
+                    focusedBorderColor = RoyalViolet,
                     unfocusedBorderColor = GlassBorderHighlight,
                     focusedTextColor = TextPrimaryDark,
                     unfocusedTextColor = TextPrimaryDark
@@ -315,11 +315,11 @@ fun UniversalTransferScreen(
                 trailingIcon = {
                     if (isTransferringToPhone) {
                         IconButton(onClick = { onNavigate(AppScreen.Files) }) {
-                            Icon(Icons.Rounded.FolderOpen, contentDescription = "Browse", tint = ElectricCyan)
+                            Icon(Icons.Rounded.FolderOpen, contentDescription = "Browse", tint = RoyalViolet)
                         }
                     } else {
                         IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
-                            Icon(Icons.Rounded.AttachFile, contentDescription = "Select File", tint = ElectricCyan)
+                            Icon(Icons.Rounded.AttachFile, contentDescription = "Select File", tint = RoyalViolet)
                         }
                     }
                 }
@@ -337,7 +337,7 @@ fun UniversalTransferScreen(
                 // Interactive Phone Folder Selector invoking native Android Files App
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
-                    borderColor = ElectricCyan.copy(alpha = 0.35f),
+                    borderColor = RoyalViolet.copy(alpha = 0.35f),
                     contentPadding = PaddingValues(14.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -349,10 +349,10 @@ fun UniversalTransferScreen(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(ElectricCyan.copy(alpha = 0.15f)),
+                                    .background(RoyalViolet.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(20.dp))
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -371,7 +371,7 @@ fun UniversalTransferScreen(
 
                         Button(
                             onClick = { folderPickerLauncher.launch(null) },
-                            colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                            colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -387,14 +387,14 @@ fun UniversalTransferScreen(
                     onValueChange = { destinationPath = it },
                     placeholder = {
                         Text(
-                            text = "/Users/g.aasish/Downloads",
+                            text = "/Users/g.aasish/Desktop",
                             color = TextMutedDark,
                             fontSize = 13.sp
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ElectricCyan,
+                        focusedBorderColor = RoyalViolet,
                         unfocusedBorderColor = GlassBorderHighlight,
                         focusedTextColor = TextPrimaryDark,
                         unfocusedTextColor = TextPrimaryDark
@@ -470,7 +470,7 @@ fun UniversalTransferScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 if (isSubmitting) {

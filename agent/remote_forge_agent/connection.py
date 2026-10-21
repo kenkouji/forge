@@ -103,6 +103,75 @@ class AgentConnection:
                 await self._ws.send(json.dumps(response_payload))
                 logger.info(f"Dispatched result for request_id '{request_id}'")
 
+    async def _clipboard_monitor_loop(self):
+        last_change_count = None
+        last_item_hash = None
+        import ctypes, ctypes.util, hashlib
+
+        change_count_fn = None
+        if sys.platform == "darwin":
+            try:
+                ctypes.cdll.LoadLibrary('/System/Library/Frameworks/AppKit.framework/AppKit')
+                objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library('objc'))
+                objc.objc_getClass.restype = ctypes.c_void_p
+                objc.objc_getClass.argtypes = [ctypes.c_char_p]
+                objc.sel_registerName.restype = ctypes.c_void_p
+                objc.sel_registerName.argtypes = [ctypes.c_char_p]
+                
+                msgSend = objc.objc_msgSend
+                msgSend.restype = ctypes.c_void_p
+                msgSend.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+
+                msgSend_long = ctypes.cast(objc.objc_msgSend, ctypes.CFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p))
+
+                NSPasteboard = objc.objc_getClass(b'NSPasteboard')
+                generalPasteboard_sel = objc.sel_registerName(b'generalPasteboard')
+                pb = msgSend(NSPasteboard, generalPasteboard_sel)
+                changeCount_sel = objc.sel_registerName(b'changeCount')
+
+                def get_cc():
+                    return msgSend_long(pb, changeCount_sel)
+
+                change_count_fn = get_cc
+            except Exception as e:
+                logger.warning(f"NSPasteboard hook error: {e}")
+
+        while self._running and self._is_ws_open():
+            try:
+                await asyncio.sleep(0.8)
+                if change_count_fn:
+                    cc = change_count_fn()
+                    if last_change_count is not None and cc == last_change_count:
+                        continue
+                    last_change_count = cc
+
+                # Read clipboard content via dispatcher
+                clip_data = self.dispatcher._handle_get_clipboard({})
+                if not clip_data or not clip_data.get("content_type"):
+                    continue
+
+                c_type = clip_data.get("content_type")
+                seed = clip_data.get("text", "") if c_type == "text" else (clip_data.get("image_base64", "")[:200])
+                if not seed:
+                    continue
+
+                curr_hash = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+                if curr_hash == last_item_hash:
+                    continue
+                last_item_hash = curr_hash
+
+                # Push clipboard update to backend
+                update_msg = {
+                    "type": "clipboard_update",
+                    "device_id": self.device_id,
+                    "item": clip_data
+                }
+                if self._is_ws_open():
+                    await self._ws.send(json.dumps(update_msg))
+                    logger.info(f"Synchronized Mac clipboard to server: {clip_data.get('preview')}")
+            except Exception as e:
+                logger.debug(f"Clipboard loop error: {e}")
+
     async def run(self):
         self._running = True
         backoff = 2.0
@@ -122,8 +191,9 @@ class AgentConnection:
                     # Send registration message
                     await ws.send(json.dumps(self._get_registration_payload()))
 
-                    # Start heartbeat task
+                    # Start heartbeat and clipboard sync tasks
                     heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+                    clipboard_task = asyncio.create_task(self._clipboard_monitor_loop())
 
                     # Listen for incoming commands
                     try:
@@ -131,6 +201,7 @@ class AgentConnection:
                             await self._handle_incoming_command(message)
                     finally:
                         heartbeat_task.cancel()
+                        clipboard_task.cancel()
 
             except (websockets.ConnectionClosed, ConnectionRefusedError, OSError) as e:
                 logger.warning(f"Connection lost or could not connect: {e}")

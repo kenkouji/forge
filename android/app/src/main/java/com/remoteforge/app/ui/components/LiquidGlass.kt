@@ -56,10 +56,10 @@ fun LiquidGlassCard(
     Surface(
         modifier = modifier
             .shadow(
-                elevation = 8.dp,
+                elevation = 10.dp,
                 shape = shape,
-                ambientColor = Color(0x30000000),
-                spotColor = Color(0x40000000)
+                ambientColor = Color(0x40110B1C),
+                spotColor = Color(0x6029163D)
             )
             .border(
                 BorderStroke(
@@ -67,7 +67,7 @@ fun LiquidGlassCard(
                     Brush.verticalGradient(
                         colors = listOf(
                             borderColor,
-                            borderColor.copy(alpha = 0.15f),
+                            borderColor.copy(alpha = 0.25f),
                             Color(0x05FFFFFF)
                         )
                     )
@@ -95,9 +95,9 @@ fun LiquidGlassBadge(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(accentColor.copy(alpha = 0.12f))
+            .background(accentColor.copy(alpha = 0.14f))
             .border(
-                BorderStroke(1.dp, accentColor.copy(alpha = 0.35f)),
+                BorderStroke(1.dp, accentColor.copy(alpha = 0.45f)),
                 shape = RoundedCornerShape(12.dp)
             )
             .padding(horizontal = 10.dp, vertical = 4.dp),
@@ -122,9 +122,9 @@ fun LiquidGlassBadge(
 
 enum class NavigationTab(val label: String, val icon: ImageVector, val showInNavBar: Boolean = true) {
     HOME("Home", Icons.Rounded.Home),
-    DEVICES("Devices", Icons.Rounded.Devices),
-    FILES("Files", Icons.Rounded.Folder),
+    DEVICES("Devices", Icons.Rounded.DesktopWindows),
     AI_ASSISTANT("AI", Icons.Rounded.AutoAwesome),
+    FILES("Files", Icons.Rounded.Folder),
     SETTINGS("Settings", Icons.Rounded.Settings),
     ACTIVITY("Activity", Icons.Rounded.History, showInNavBar = false),
     TRANSFERS("Transfers", Icons.Rounded.SwapVert, showInNavBar = false)
@@ -147,10 +147,10 @@ fun LiquidGlassFloatingNavBar(
         Surface(
             modifier = Modifier
                 .shadow(
-                    elevation = 16.dp,
-                    shape = RoundedCornerShape(32.dp),
-                    ambientColor = Color(0x60000000),
-                    spotColor = Color(0x80000000)
+                    elevation = 20.dp,
+                    shape = RoundedCornerShape(34.dp),
+                    ambientColor = Color(0x80110B1C),
+                    spotColor = Color(0x9029163D)
                 )
                 .border(
                     BorderStroke(
@@ -162,60 +162,97 @@ fun LiquidGlassFloatingNavBar(
                             )
                         )
                     ),
-                    shape = RoundedCornerShape(32.dp)
+                    shape = RoundedCornerShape(34.dp)
                 ),
-            shape = RoundedCornerShape(32.dp),
+            shape = RoundedCornerShape(34.dp),
             color = GlassPillBackground
         ) {
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 NavigationTab.values().filter { it.showInNavBar }.forEach { tab ->
                     val isSelected = currentTab == tab
-                    val tabColor by animateColorAsState(
-                        targetValue = if (isSelected) ElectricCyan else TextMutedDark,
-                        animationSpec = tween(250),
-                        label = "tabColor"
-                    )
+                    val isAi = tab == NavigationTab.AI_ASSISTANT
 
-                    val bgModifier = if (isSelected) {
-                        Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(ElectricCyan.copy(alpha = 0.15f))
+                    if (isAi) {
+                        // Center prominent AI capsule button
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .shadow(
+                                    elevation = 12.dp,
+                                    shape = CircleShape,
+                                    ambientColor = RoyalViolet.copy(alpha = 0.5f),
+                                    spotColor = LavenderAccent.copy(alpha = 0.5f)
+                                )
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(RoyalViolet, RoyalVioletDark)
+                                    )
+                                )
+                                .border(
+                                    BorderStroke(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = if (isSelected) LavenderAccent else Color(0x60BDA0FF)
+                                    ),
+                                    CircleShape
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onTabSelected(tab)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = tab.label,
+                                tint = PearlWhite,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     } else {
-                        Modifier
-                    }
+                        val tabColor by animateColorAsState(
+                            targetValue = if (isSelected) LavenderAccent else TextMutedDark,
+                            animationSpec = tween(220),
+                            label = "tabColor"
+                        )
 
-                    Column(
-                        modifier = Modifier
-                            .then(bgModifier)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onTabSelected(tab)
-                            }
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.label,
-                            tint = tabColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = tab.label,
-                            color = tabColor,
-                            fontSize = 9.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
+                        val bgModifier = if (isSelected) {
+                            Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(RoyalViolet.copy(alpha = 0.22f))
+                        } else {
+                            Modifier
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .then(bgModifier)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onTabSelected(tab)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = tab.label,
+                                tint = tabColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }

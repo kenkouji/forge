@@ -4,7 +4,10 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.config import settings
 
+import uuid
+
 def test_agent_websocket_registration_and_heartbeat():
+    dev_id = f"test-mbp-{uuid.uuid4().hex[:6]}"
     with TestClient(app) as client:
         # 1. Connect agent via WebSocket
         ws_url = f"/ws/agent?token={settings.AGENT_TOKEN}"
@@ -12,7 +15,7 @@ def test_agent_websocket_registration_and_heartbeat():
             # 2. Send registration
             reg_payload = {
                 "type": "register",
-                "device_id": "test-macbook-pro",
+                "device_id": dev_id,
                 "device_name": "Test MacBook Pro",
                 "os_name": "macOS",
                 "os_version": "14.4.1",
@@ -24,13 +27,13 @@ def test_agent_websocket_registration_and_heartbeat():
             ack_raw = websocket.receive_text()
             ack = json.loads(ack_raw)
             assert ack["type"] == "registered"
-            assert ack["device_id"] == "test-macbook-pro"
+            assert ack["device_id"] == dev_id
             assert ack["status"] == "authorized"
 
             # 3. Send heartbeat
             websocket.send_text(json.dumps({
                 "type": "heartbeat",
-                "device_id": "test-macbook-pro"
+                "device_id": dev_id
             }))
             hb_ack_raw = websocket.receive_text()
             hb_ack = json.loads(hb_ack_raw)
@@ -47,7 +50,7 @@ def test_agent_websocket_registration_and_heartbeat():
             devices_res = client.get("/api/devices", headers=headers)
             assert devices_res.status_code == 200
             devices = devices_res.json()
-            test_dev = next((d for d in devices if d["id"] == "test-macbook-pro"), None)
+            test_dev = next((d for d in devices if d["id"] == dev_id), None)
             assert test_dev is not None
             assert test_dev["is_online"] is True
             assert test_dev["name"] == "Test MacBook Pro"

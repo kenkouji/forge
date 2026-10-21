@@ -61,13 +61,13 @@ fun TransfersScreen(
 
             Button(
                 onClick = { onNavigate(AppScreen.UniversalTransfer()) },
-                colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan.copy(alpha = 0.25f)),
+                colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet.copy(alpha = 0.25f)),
                 shape = RoundedCornerShape(16.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Icon(Icons.Rounded.Add, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(16.dp))
+                Icon(Icons.Rounded.Add, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("New", color = ElectricCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text("New", color = RoyalViolet, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
 
@@ -91,7 +91,7 @@ fun TransfersScreen(
                             text = "ACTIVE SESSIONS (${activeTransfers.size})",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = ElectricCyan
+                            color = RoyalViolet
                         )
                     }
 

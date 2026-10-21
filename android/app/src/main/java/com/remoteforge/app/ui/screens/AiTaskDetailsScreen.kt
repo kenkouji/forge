@@ -63,7 +63,7 @@ fun AiTaskDetailsScreen(
                         Icon(
                             imageVector = Icons.Rounded.ArrowBack,
                             contentDescription = "Back",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
                 },
@@ -76,7 +76,7 @@ fun AiTaskDetailsScreen(
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = "Refresh Task",
-                            tint = ElectricCyan
+                            tint = RoyalViolet
                         )
                     }
                 },
@@ -107,7 +107,7 @@ fun AiTaskDetailsScreen(
                 val isRunning = task.status == "RUNNING" || task.status == "PENDING"
                 val statusAccent = when (task.status) {
                     "COMPLETED" -> EmeraldOnline
-                    "RUNNING" -> ElectricCyan
+                    "RUNNING" -> RoyalViolet
                     "FAILED", "REJECTED" -> RubyOffline
                     else -> AmberWarning
                 }
@@ -171,7 +171,7 @@ fun AiTaskDetailsScreen(
                                 .fillMaxWidth()
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp)),
-                            color = ElectricCyan,
+                            color = RoyalViolet,
                             trackColor = GlassSurfaceElevated
                         )
                     }
@@ -198,7 +198,7 @@ fun AiTaskDetailsScreen(
                             text = task.argumentsJson?.ifEmpty { "{}" } ?: "{}",
                             fontFamily = FontFamily.Monospace,
                             fontSize = 12.sp,
-                            color = ElectricCyan
+                            color = RoyalViolet
                         )
                     }
                 }
@@ -284,7 +284,7 @@ fun AiTaskDetailsScreen(
 
                 // Action Notification
                 actionFeedback?.let { msg ->
-                    Text(text = msg, color = ElectricCyan, fontSize = 12.sp)
+                    Text(text = msg, color = RoyalViolet, fontSize = 12.sp)
                 }
 
                 // Action Buttons

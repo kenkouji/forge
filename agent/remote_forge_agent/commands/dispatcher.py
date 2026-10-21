@@ -9,6 +9,8 @@ from agent.remote_forge_agent.system.screenshot import capture_screenshot
 from agent.remote_forge_agent.system.input_control import input_service
 from agent.remote_forge_agent.filesystem.scanner import UserFilesystemService
 from agent.remote_forge_agent.filesystem.transfer import ChunkedTransferHandler
+from agent.remote_forge_agent.developer.workstation import DeveloperWorkstation
+from agent.remote_forge_agent.system.screen_streamer import screen_streamer
 from agent.remote_forge_agent.security.allowlist import FilesystemSecurityEnforcer, SecurityPolicyException
 
 
@@ -17,6 +19,15 @@ class CommandDispatcher:
         self.enforcer = enforcer
         self.fs_service = UserFilesystemService(enforcer)
         self.transfer_handler = ChunkedTransferHandler(enforcer)
+        self.workstation = DeveloperWorkstation(enforcer)
+
+        self.privacy_shield_state = {
+            "is_lockdown": False,
+            "is_screen_paused": False,
+            "is_input_disabled": False,
+            "is_transfers_stopped": False
+        }
+
         self.registry: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
             "get_system_status": self._handle_system_status,
             "take_screenshot": self._handle_screenshot,
@@ -32,6 +43,11 @@ class CommandDispatcher:
             "cancel_file_upload": self._handle_cancel_file_upload,
             "get_file_hash": self._handle_get_file_hash,
             "zip_directory": self._handle_zip_directory,
+            "git_status": self._handle_git_status,
+            "git_diff": self._handle_git_diff,
+            "build_project": self._handle_build_project,
+            "get_clipboard": self._handle_get_clipboard,
+            "set_clipboard": self._handle_set_clipboard,
             "open_application": self._handle_open_application,
             "close_application": self._handle_close_application,
             "minimize_application": self._handle_minimize_application,
@@ -43,10 +59,76 @@ class CommandDispatcher:
             "browser_search": self._handle_browser_search,
             "open_browser": self._handle_open_browser,
             "restart_pc": self._handle_restart_pc,
-            "shutdown_pc": self._handle_shutdown_pc
+            "shutdown_pc": self._handle_shutdown_pc,
+            "get_stream_frame": self._handle_get_stream_frame,
+            "configure_stream": self._handle_configure_stream,
+            "get_stream_status": self._handle_get_stream_status,
+            "sync_privacy_shield": self._handle_sync_privacy_shield
         }
 
     async def dispatch(self, tool: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        # Defense-in-depth: independently enforce guest restrictions on the host agent
+        actor = arguments.get("actor", "")
+        if actor.startswith("guest:"):
+            if self.privacy_shield_state.get("is_lockdown"):
+                return {
+                    "success": False,
+                    "error": "Host agent rejected action: Emergency Lockdown is active.",
+                    "result": None,
+                    "execution_duration_ms": 0.0
+                }
+            allowed_guest = [
+                "send_input_event", "remote_input", "mouse_click", "click",
+                "mouse_drag", "drag", "mouse_move", "move", "mouse_down",
+                "mouse_up", "send_keys", "key", "key_tap", "type_text",
+                "scroll", "shortcut"
+            ]
+            if tool not in allowed_guest:
+                return {
+                    "success": False,
+                    "error": f"Host agent security policy: Guests are forbidden from executing '{tool}'.",
+                    "result": None,
+                    "execution_duration_ms": 0.0
+                }
+            if self.privacy_shield_state.get("is_input_disabled"):
+                return {
+                    "success": False,
+                    "error": "Host agent rejected guest input: Privacy Shield has input disabled.",
+                    "result": None,
+                    "execution_duration_ms": 0.0
+                }
+
+        # Normalize input tool aliases
+        if tool in ["mouse_click", "click"]:
+            if "action" not in arguments: arguments["action"] = "click"
+            tool = "send_input_event"
+        elif tool in ["mouse_drag", "drag"]:
+            if "action" not in arguments: arguments["action"] = "mouse_drag"
+            tool = "send_input_event"
+        elif tool in ["mouse_move", "move"]:
+            if "action" not in arguments: arguments["action"] = "move"
+            tool = "send_input_event"
+        elif tool in ["mouse_down", "down"]:
+            if "action" not in arguments: arguments["action"] = "mouse_down"
+            tool = "send_input_event"
+        elif tool in ["mouse_up", "up"]:
+            if "action" not in arguments: arguments["action"] = "mouse_up"
+            tool = "send_input_event"
+        elif tool in ["send_keys", "type_text"]:
+            if "action" not in arguments: arguments["action"] = "type_text"
+            tool = "send_input_event"
+        elif tool in ["key", "key_tap"]:
+            if "action" not in arguments: arguments["action"] = "key"
+            tool = "send_input_event"
+        elif tool == "scroll":
+            if "action" not in arguments: arguments["action"] = "scroll"
+            tool = "send_input_event"
+        elif tool == "shortcut":
+            if "action" not in arguments: arguments["action"] = "shortcut"
+            tool = "send_input_event"
+        elif tool == "remote_input":
+            tool = "send_input_event"
+
         handler = self.registry.get(tool)
         if not handler:
             return {
@@ -297,7 +379,18 @@ class CommandDispatcher:
             dialog_script = f'display alert "{title}" message "{message}" as informational'
             subprocess.Popen(["osascript", "-e", dialog_script])
         elif sys.platform == "win32":
-            subprocess.Popen(["powershell", "-Command", f'[System.Windows.Forms.MessageBox]::Show("{message}", "{title}")'])
+            # Modern non-blocking PowerShell balloon toast notification
+            ps_cmd = f'''
+            [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms");
+            $notify = New-Object System.Windows.Forms.NotifyIcon;
+            $notify.Icon = [System.Drawing.SystemIcons]::Information;
+            $notify.BalloonTipTitle = "{title}";
+            $notify.BalloonTipText = "{message}";
+            $notify.BalloonTipIcon = "Info";
+            $notify.Visible = $True;
+            $notify.ShowBalloonTip(5000);
+            '''
+            subprocess.Popen(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps_cmd])
         else:
             subprocess.run(["notify-send", title, message])
         return {"status": f"Desktop alert '{title}: {message}' displayed."}
@@ -310,6 +403,12 @@ class CommandDispatcher:
         level = max(0, min(100, level))
         if sys.platform == "darwin":
             subprocess.run(["osascript", "-e", f"set volume output volume {level}"])
+        elif sys.platform == "win32":
+            try:
+                # On Windows, adjust volume steps using WScript SendKeys or AudioDeviceCmdlets
+                subprocess.run(["powershell", "-NoProfile", "-Command", f"(New-Object -ComObject WScript.Shell).SendKeys([char]174)"], capture_output=True)
+            except Exception:
+                pass
         return {"status": f"System volume set to {level}%."}
 
     def _handle_open_browser(self, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -382,6 +481,87 @@ class CommandDispatcher:
             raise ValueError("Missing 'path' or 'target_directory' argument.")
         return self.transfer_handler.zip_directory(path)
 
+    def _handle_git_status(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        path = args.get("path") or args.get("project_path")
+        return self.workstation.git_status(path)
+
+    def _handle_git_diff(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        path = args.get("path") or args.get("project_path")
+        file_path = args.get("file_path") or args.get("file")
+        staged = bool(args.get("staged", False))
+        return self.workstation.git_diff(path, file_path, staged)
+
+    def _handle_build_project(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        path = args.get("path") or args.get("project_path")
+        task_type = args.get("task_type") or args.get("task") or "build"
+        custom_cmd = args.get("command") or args.get("custom_cmd")
+        timeout_sec = int(args.get("timeout_seconds") or args.get("timeout") or 60)
+        return self.workstation.build_project(path, task_type, custom_cmd, timeout_sec)
+
+    def _handle_get_clipboard(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        import subprocess, io, base64
+        from PIL import Image, ImageGrab
+
+        # 1. Try Image
+        try:
+            img = ImageGrab.grabclipboard()
+            if isinstance(img, Image.Image):
+                out = io.BytesIO()
+                img.save(out, format="PNG")
+                raw = out.getvalue()
+                return {
+                    "content_type": "image",
+                    "image_base64": base64.b64encode(raw).decode("utf-8"),
+                    "preview": f"{img.width}x{img.height} Image ({round(len(raw)/1024.0, 1)} KB)",
+                    "size_bytes": len(raw)
+                }
+        except Exception:
+            pass
+
+        # 2. Try Text
+        try:
+            if sys.platform == "darwin":
+                res = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=2)
+                txt = res.stdout if res.returncode == 0 else ""
+            else:
+                txt = self.workstation.get_clipboard().get("text", "")
+            return {
+                "content_type": "text",
+                "text": txt,
+                "preview": txt[:120].replace("\n", " ").strip(),
+                "size_bytes": len(txt.encode("utf-8"))
+            }
+        except Exception as e:
+            return {"content_type": "text", "text": "", "error": str(e), "size_bytes": 0}
+
+    def _handle_set_clipboard(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        import subprocess, base64
+        content_type = str(args.get("content_type", "text")).lower()
+
+        if content_type == "image" and args.get("image_base64"):
+            try:
+                raw_bytes = base64.b64decode(args["image_base64"])
+                tmp_path = "/tmp/rf_clipboard_paste.png"
+                with open(tmp_path, "wb") as f:
+                    f.write(raw_bytes)
+                if sys.platform == "darwin":
+                    cmd = f'set the clipboard to (read (POSIX file "{tmp_path}") as «class PNGf»)'
+                    subprocess.run(["osascript", "-e", cmd], check=True, timeout=3)
+                return {"status": "image_copied_to_clipboard", "size_bytes": len(raw_bytes)}
+            except Exception as e:
+                return {"status": "error", "error": f"Failed to copy image to clipboard: {e}"}
+
+        # Text clipboard
+        text = str(args.get("text", ""))
+        try:
+            if sys.platform == "darwin":
+                subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True, timeout=2)
+            else:
+                self.workstation.set_clipboard(text)
+            return {"status": "text_copied_to_clipboard", "length": len(text)}
+        except Exception as e:
+            return {"status": "error", "error": f"Failed to set clipboard: {e}"}
+
     def _handle_restart_pc(self, args: Dict[str, Any]) -> Dict[str, Any]:
         # High-risk confirmed operation
         return {"status": "Simulated restart PC (High risk safety mock). To execute live: shutdown -r"}
@@ -389,3 +569,36 @@ class CommandDispatcher:
     def _handle_shutdown_pc(self, args: Dict[str, Any]) -> Dict[str, Any]:
         # High-risk confirmed operation
         return {"status": "Simulated shutdown PC (High risk safety mock). To execute live: shutdown -h"}
+
+    def _handle_get_stream_frame(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        import base64
+        width = int(args.get("width") or 960)
+        quality = int(args.get("quality") or 50)
+        jpeg_bytes, w, h, dur = screen_streamer.capture_frame(target_width=width, quality=quality)
+        if jpeg_bytes is None:
+            return {"success": False, "error": "Screen frame capture failed."}
+        return {
+            "width": w,
+            "height": h,
+            "capture_duration_ms": dur,
+            "size_kb": round(len(jpeg_bytes) / 1024.0, 1),
+            "timestamp": time.time(),
+            "data_base64": base64.b64encode(jpeg_bytes).decode("utf-8")
+        }
+
+    def _handle_configure_stream(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        w = args.get("width")
+        q = args.get("quality")
+        fps = args.get("fps")
+        screen_streamer.configure(target_width=int(w) if w else None, quality=int(q) if q else None, fps=int(fps) if fps else None)
+        return screen_streamer.get_status()
+
+    def _handle_get_stream_status(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return screen_streamer.get_status()
+
+    def _handle_sync_privacy_shield(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        self.privacy_shield_state.update(args)
+        return {"status": "synchronized", "privacy_shield": self.privacy_shield_state}
+
+
+
