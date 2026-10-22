@@ -140,6 +140,17 @@ class ConnectionManager:
     def is_agent_online(self, device_id: str) -> bool:
         return device_id in self.agent_connections
 
+    def is_agent_connected(self, device_id: str) -> bool:
+        return self.is_agent_online(device_id)
+
+    async def send_to_agent(self, device_id: str, message: Dict[str, Any]):
+        if self.is_agent_online(device_id):
+            ws = self.agent_connections[device_id]
+            try:
+                await ws.send_json(message)
+            except Exception as e:
+                logger.warning(f"Failed to send message to agent {device_id}: {e}")
+
     async def send_command_to_agent(
         self, device_id: str, request_id: str, tool: str, arguments: Dict[str, Any], timeout_seconds: float = 30.0
     ) -> Dict[str, Any]:

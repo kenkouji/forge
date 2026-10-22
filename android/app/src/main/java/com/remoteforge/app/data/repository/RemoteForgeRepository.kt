@@ -1818,4 +1818,225 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
             false
         }
     }
+
+    // ==========================================
+    // Virtual Extended Display Repository APIs
+    // ==========================================
+    suspend fun startVirtualDisplay(
+        deviceId: String,
+        width: Int = 1920,
+        height: Int = 1080,
+        fps: Int = 60,
+        dpi: Int = 240,
+        enableTouch: Boolean = true
+    ): VirtualDisplayStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.startVirtualDisplay(
+                "Bearer $token",
+                VirtualDisplayStartRequest(deviceId, width, height, fps, dpi, "32bit", enableTouch)
+            )
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun stopVirtualDisplay(deviceId: String): VirtualDisplayStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.stopVirtualDisplay("Bearer $token", VirtualDisplayStopRequest(deviceId))
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun getVirtualDisplayStatus(deviceId: String): VirtualDisplayStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.getVirtualDisplayStatus("Bearer $token", deviceId)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun injectVirtualDisplayTouch(
+        deviceId: String,
+        action: String,
+        normX: Float,
+        normY: Float,
+        scrollDx: Float = 0f,
+        scrollDy: Float = 0f
+    ): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.injectVirtualDisplayTouch(
+                "Bearer $token",
+                VirtualDisplayTouchRequest(deviceId, action, normX, normY, scrollDx, scrollDy)
+            )
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // ==========================================
+    // Universal Control Edge Hopping Repository APIs
+    // ==========================================
+    suspend fun configureEdgeControl(
+        deviceId: String,
+        edge: String = "RIGHT",
+        sensitivity: Float = 1.0f,
+        dwellDelayMs: Int = 80,
+        enableKeyboard: Boolean = true,
+        enableClipboardSync: Boolean = true
+    ): EdgeControlStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.configureEdgeControl(
+                "Bearer $token",
+                EdgeControlConfigRequest(deviceId, edge, sensitivity, dwellDelayMs, enableKeyboard, enableClipboardSync)
+            )
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun disableEdgeControl(deviceId: String): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.disableEdgeControl("Bearer $token", deviceId)
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getEdgeControlStatus(deviceId: String): EdgeControlStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.getEdgeControlStatus("Bearer $token", deviceId)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun sendEdgeHandoff(
+        deviceId: String,
+        eventType: String,
+        normX: Float,
+        normY: Float,
+        button: String? = null,
+        keyCode: String? = null,
+        isPressed: Boolean? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.sendEdgeHandoff(
+                "Bearer $token",
+                EdgeHandoffEvent(deviceId, eventType, normX, normY, button, keyCode, isPressed)
+            )
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // ==========================================
+    // Zero-Config P2P Mesh Repository APIs
+    // ==========================================
+    suspend fun getP2pConfig(): P2pConfigResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.getP2pConfig("Bearer $token")
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun createP2pSession(deviceId: String): P2pSessionResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.createP2pSession("Bearer $token", P2pSessionCreateRequest(deviceId))
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun postP2pSignal(sessionId: String, senderType: String, signalType: String, payloadJson: String): Boolean = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext false
+        val service = networkConfig.apiService ?: return@withContext false
+        try {
+            val res = service.postP2pSignal(
+                "Bearer $token",
+                sessionId,
+                P2pSignalMessage(sessionId, senderType, signalType, payloadJson)
+            )
+            res.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // ==========================================
+    // Bi-Directional Audio Repository APIs
+    // ==========================================
+    suspend fun startAudioSession(
+        deviceId: String,
+        mode: String = "sink",
+        sampleRate: Int = 48000,
+        channels: Int = 2,
+        bitDepth: Int = 16,
+        codec: String = "pcm"
+    ): AudioStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.startAudioSession(
+                "Bearer $token",
+                AudioSessionStartRequest(deviceId, mode, sampleRate, channels, bitDepth, codec)
+            )
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun stopAudioSession(deviceId: String): AudioStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.stopAudioSession("Bearer $token", AudioSessionStopRequest(deviceId))
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun getAudioStatus(deviceId: String): AudioStatusResponse? = withContext(Dispatchers.IO) {
+        val token = networkConfig.authToken ?: return@withContext null
+        val service = networkConfig.apiService ?: return@withContext null
+        try {
+            val res = service.getAudioStatus("Bearer $token", deviceId)
+            if (res.isSuccessful) res.body() else null
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

@@ -320,4 +320,100 @@ interface RemoteForgeApiService {
         @Header("Authorization") authHeader: String,
         @Path("file_id") fileId: String
     ): Response<Map<String, Any>>
+
+    // ==========================================
+    // Virtual Extended Display
+    // ==========================================
+    @POST("api/virtual-display/start")
+    suspend fun startVirtualDisplay(
+        @Header("Authorization") authHeader: String,
+        @Body request: VirtualDisplayStartRequest
+    ): Response<VirtualDisplayStatusResponse>
+
+    @POST("api/virtual-display/stop")
+    suspend fun stopVirtualDisplay(
+        @Header("Authorization") authHeader: String,
+        @Body request: VirtualDisplayStopRequest
+    ): Response<VirtualDisplayStatusResponse>
+
+    @GET("api/virtual-display/status/{device_id}")
+    suspend fun getVirtualDisplayStatus(
+        @Header("Authorization") authHeader: String,
+        @Path("device_id") deviceId: String
+    ): Response<VirtualDisplayStatusResponse>
+
+    @POST("api/virtual-display/touch")
+    suspend fun injectVirtualDisplayTouch(
+        @Header("Authorization") authHeader: String,
+        @Body request: VirtualDisplayTouchRequest
+    ): Response<Map<String, Any>>
+
+    // ==========================================
+    // Universal Control Edge Hopping
+    // ==========================================
+    @POST("api/edge-control/configure")
+    suspend fun configureEdgeControl(
+        @Header("Authorization") authHeader: String,
+        @Body request: EdgeControlConfigRequest
+    ): Response<EdgeControlStatusResponse>
+
+    @POST("api/edge-control/disable")
+    suspend fun disableEdgeControl(
+        @Header("Authorization") authHeader: String,
+        @Query("device_id") deviceId: String
+    ): Response<Map<String, Any>>
+
+    @GET("api/edge-control/status/{device_id}")
+    suspend fun getEdgeControlStatus(
+        @Header("Authorization") authHeader: String,
+        @Path("device_id") deviceId: String
+    ): Response<EdgeControlStatusResponse>
+
+    @POST("api/edge-control/handoff")
+    suspend fun sendEdgeHandoff(
+        @Header("Authorization") authHeader: String,
+        @Body event: EdgeHandoffEvent
+    ): Response<Map<String, Any>>
+
+    // ==========================================
+    // Zero-Config P2P Mesh
+    // ==========================================
+    @GET("api/p2p/config")
+    suspend fun getP2pConfig(
+        @Header("Authorization") authHeader: String
+    ): Response<P2pConfigResponse>
+
+    @POST("api/p2p/session/create")
+    suspend fun createP2pSession(
+        @Header("Authorization") authHeader: String,
+        @Body request: P2pSessionCreateRequest
+    ): Response<P2pSessionResponse>
+
+    @POST("api/p2p/signal/{session_id}")
+    suspend fun postP2pSignal(
+        @Header("Authorization") authHeader: String,
+        @Path("session_id") sessionId: String,
+        @Body signal: P2pSignalMessage
+    ): Response<Map<String, Any>>
+
+    // ==========================================
+    // Bi-Directional Audio
+    // ==========================================
+    @POST("api/audio/start")
+    suspend fun startAudioSession(
+        @Header("Authorization") authHeader: String,
+        @Body request: AudioSessionStartRequest
+    ): Response<AudioStatusResponse>
+
+    @POST("api/audio/stop")
+    suspend fun stopAudioSession(
+        @Header("Authorization") authHeader: String,
+        @Body request: AudioSessionStopRequest
+    ): Response<AudioStatusResponse>
+
+    @GET("api/audio/status/{device_id}")
+    suspend fun getAudioStatus(
+        @Header("Authorization") authHeader: String,
+        @Path("device_id") deviceId: String
+    ): Response<AudioStatusResponse>
 }

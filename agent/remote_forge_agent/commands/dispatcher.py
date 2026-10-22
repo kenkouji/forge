@@ -11,6 +11,10 @@ from agent.remote_forge_agent.filesystem.scanner import UserFilesystemService
 from agent.remote_forge_agent.filesystem.transfer import ChunkedTransferHandler
 from agent.remote_forge_agent.developer.workstation import DeveloperWorkstation
 from agent.remote_forge_agent.system.screen_streamer import screen_streamer
+from agent.remote_forge_agent.system.virtual_display import virtual_display_manager
+from agent.remote_forge_agent.system.edge_control import edge_control_manager
+from agent.remote_forge_agent.mesh.p2p_node import p2p_node
+from agent.remote_forge_agent.audio.audio_engine import audio_engine
 from agent.remote_forge_agent.security.allowlist import FilesystemSecurityEnforcer, SecurityPolicyException
 
 
@@ -63,7 +67,16 @@ class CommandDispatcher:
             "get_stream_frame": self._handle_get_stream_frame,
             "configure_stream": self._handle_configure_stream,
             "get_stream_status": self._handle_get_stream_status,
-            "sync_privacy_shield": self._handle_sync_privacy_shield
+            "sync_privacy_shield": self._handle_sync_privacy_shield,
+            "virtual_display_start": self._handle_virtual_display_start,
+            "virtual_display_stop": self._handle_virtual_display_stop,
+            "virtual_display_touch": self._handle_virtual_display_touch,
+            "edge_control_configure": self._handle_edge_control_configure,
+            "edge_control_disable": self._handle_edge_control_disable,
+            "edge_control_return_cursor": self._handle_edge_control_return_cursor,
+            "p2p_session_init": self._handle_p2p_session_init,
+            "audio_start": self._handle_audio_start,
+            "audio_stop": self._handle_audio_stop
         }
 
     async def dispatch(self, tool: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
@@ -599,6 +612,64 @@ class CommandDispatcher:
     def _handle_sync_privacy_shield(self, args: Dict[str, Any]) -> Dict[str, Any]:
         self.privacy_shield_state.update(args)
         return {"status": "synchronized", "privacy_shield": self.privacy_shield_state}
+
+    def _handle_virtual_display_start(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return virtual_display_manager.start(
+            session_id=str(args.get("session_id", "default")),
+            width=int(args.get("width", 1920)),
+            height=int(args.get("height", 1080)),
+            fps=int(args.get("fps", 60)),
+            dpi=int(args.get("dpi", 240)),
+            enable_touch=bool(args.get("enable_touch", True))
+        )
+
+    def _handle_virtual_display_stop(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return virtual_display_manager.stop()
+
+    def _handle_virtual_display_touch(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return virtual_display_manager.handle_touch(
+            action=str(args.get("action", "click")),
+            norm_x=float(args.get("norm_x", 0.5)),
+            norm_y=float(args.get("norm_y", 0.5)),
+            scroll_dx=float(args.get("scroll_dx", 0.0)),
+            scroll_dy=float(args.get("scroll_dy", 0.0)),
+            target_width=int(args.get("target_width", 1920)),
+            target_height=int(args.get("target_height", 1080))
+        )
+
+    def _handle_edge_control_configure(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return edge_control_manager.configure(
+            edge=str(args.get("edge", "RIGHT")),
+            sensitivity=float(args.get("sensitivity", 1.0)),
+            dwell_delay_ms=int(args.get("dwell_delay_ms", 80)),
+            enable_keyboard=bool(args.get("enable_keyboard", True)),
+            enable_clipboard_sync=bool(args.get("enable_clipboard_sync", True))
+        )
+
+    def _handle_edge_control_disable(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return edge_control_manager.disable()
+
+    def _handle_edge_control_return_cursor(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return edge_control_manager.return_cursor()
+
+    def _handle_p2p_session_init(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return p2p_node.init_session(
+            session_id=str(args.get("session_id", "default")),
+            client_type=str(args.get("client_type", "android")),
+            stun_servers=args.get("stun_servers")
+        )
+
+    def _handle_audio_start(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return audio_engine.start(
+            session_id=str(args.get("session_id", "default")),
+            mode=str(args.get("mode", "sink")),
+            sample_rate=int(args.get("sample_rate", 48000)),
+            channels=int(args.get("channels", 2)),
+            codec=str(args.get("codec", "pcm"))
+        )
+
+    def _handle_audio_stop(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        return audio_engine.stop()
 
 
 

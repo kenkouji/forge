@@ -621,4 +621,131 @@ data class PromoteFileRequest(
     @SerializedName("destination_dir") val destinationDir: String
 )
 
+// ==========================================
+// Virtual Display Models
+// ==========================================
+data class VirtualDisplayStartRequest(
+    @SerializedName("device_id") val deviceId: String,
+    val width: Int = 1920,
+    val height: Int = 1080,
+    val fps: Int = 60,
+    val dpi: Int = 240,
+    @SerializedName("color_depth") val colorDepth: String = "32bit",
+    @SerializedName("enable_touch") val enableTouch: Boolean = true
+)
+
+data class VirtualDisplayStopRequest(
+    @SerializedName("device_id") val deviceId: String
+)
+
+data class VirtualDisplayStatusResponse(
+    @SerializedName("device_id") val deviceId: String = "",
+    @SerializedName("is_active") val isActive: Boolean = false,
+    val width: Int = 1920,
+    val height: Int = 1080,
+    val fps: Int = 60,
+    @SerializedName("current_fps") val currentFps: Float = 0.0f,
+    @SerializedName("latency_ms") val latencyMs: Float = 0.0f,
+    @SerializedName("touch_enabled") val touchEnabled: Boolean = true,
+    @SerializedName("session_id") val sessionId: String? = null,
+    @SerializedName("started_at") val startedAt: String? = null
+)
+
+data class VirtualDisplayTouchRequest(
+    @SerializedName("device_id") val deviceId: String,
+    val action: String,
+    @SerializedName("norm_x") val normX: Float,
+    @SerializedName("norm_y") val normY: Float,
+    @SerializedName("scroll_dx") val scrollDx: Float? = 0f,
+    @SerializedName("scroll_dy") val scrollDy: Float? = 0f
+)
+
+// ==========================================
+// Universal Control Edge Hopping Models
+// ==========================================
+data class EdgeControlConfigRequest(
+    @SerializedName("device_id") val deviceId: String,
+    val edge: String = "RIGHT",
+    val sensitivity: Float = 1.0f,
+    @SerializedName("dwell_delay_ms") val dwellDelayMs: Int = 80,
+    @SerializedName("enable_keyboard") val enableKeyboard: Boolean = true,
+    @SerializedName("enable_clipboard_sync") val enableClipboardSync: Boolean = true
+)
+
+data class EdgeControlStatusResponse(
+    @SerializedName("device_id") val deviceId: String = "",
+    @SerializedName("is_enabled") val isEnabled: Boolean = false,
+    @SerializedName("configured_edge") val configuredEdge: String = "RIGHT",
+    @SerializedName("is_remote_active") val isRemoteActive: Boolean = false,
+    @SerializedName("cursor_x") val cursorX: Float = 0.5f,
+    @SerializedName("cursor_y") val cursorY: Float = 0.5f,
+    @SerializedName("last_handoff_at") val lastHandoffAt: String? = null
+)
+
+data class EdgeHandoffEvent(
+    @SerializedName("device_id") val deviceId: String,
+    @SerializedName("event_type") val eventType: String,
+    @SerializedName("norm_x") val normX: Float = 0.5f,
+    @SerializedName("norm_y") val normY: Float = 0.5f,
+    val button: String? = null,
+    @SerializedName("key_code") val keyCode: String? = null,
+    @SerializedName("is_pressed") val isPressed: Boolean? = null
+)
+
+// ==========================================
+// P2P Mesh Tunneling Models
+// ==========================================
+data class P2pConfigResponse(
+    @SerializedName("stun_servers") val stunServers: List<String> = emptyList(),
+    @SerializedName("turn_servers") val turnServers: List<Map<String, String>> = emptyList(),
+    @SerializedName("relay_fallback_enabled") val relayFallbackEnabled: Boolean = true
+)
+
+data class P2pSessionCreateRequest(
+    @SerializedName("device_id") val deviceId: String,
+    @SerializedName("client_type") val clientType: String = "android"
+)
+
+data class P2pSessionResponse(
+    @SerializedName("session_id") val sessionId: String = "",
+    @SerializedName("device_id") val deviceId: String = "",
+    val status: String = "",
+    @SerializedName("signaling_channel_ws") val signalingChannelWs: String = "",
+    @SerializedName("created_at") val createdAt: String = ""
+)
+
+data class P2pSignalMessage(
+    @SerializedName("session_id") val sessionId: String,
+    @SerializedName("sender_type") val senderType: String,
+    @SerializedName("signal_type") val signalType: String,
+    @SerializedName("payload_json") val payloadJson: String
+)
+
+// ==========================================
+// Low-Latency Bi-Directional Audio Models
+// ==========================================
+data class AudioSessionStartRequest(
+    @SerializedName("device_id") val deviceId: String,
+    val mode: String = "sink",
+    @SerializedName("sample_rate") val sampleRate: Int = 48000,
+    val channels: Int = 2,
+    @SerializedName("bit_depth") val bitDepth: Int = 16,
+    val codec: String = "pcm"
+)
+
+data class AudioSessionStopRequest(
+    @SerializedName("device_id") val deviceId: String
+)
+
+data class AudioStatusResponse(
+    @SerializedName("device_id") val deviceId: String = "",
+    @SerializedName("is_active") val isActive: Boolean = false,
+    val mode: String = "sink",
+    @SerializedName("sample_rate") val sampleRate: Int = 48000,
+    val channels: Int = 2,
+    val codec: String = "pcm",
+    @SerializedName("latency_ms") val latencyMs: Float = 0.0f,
+    @SerializedName("packets_transferred") val packetsTransferred: Int = 0
+)
+
 

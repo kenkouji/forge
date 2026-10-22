@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
                 // Determine active navigation tab in floating dock (EXACTLY 5 TABS)
                 val activeTab = when (currentScreen) {
                     is AppScreen.Home, is AppScreen.Automations, is AppScreen.ActivityLogs -> NavigationTab.HOME
-                    is AppScreen.Devices, is AppScreen.DeviceDetails, is AppScreen.ScreenshotViewer, is AppScreen.RemoteControl, is AppScreen.Developer, is AppScreen.ClipboardHistory, is AppScreen.TaskManager, is AppScreen.LiveScreen -> NavigationTab.DEVICES
+                    is AppScreen.Devices, is AppScreen.DeviceDetails, is AppScreen.ScreenshotViewer, is AppScreen.RemoteControl, is AppScreen.Developer, is AppScreen.ClipboardHistory, is AppScreen.TaskManager, is AppScreen.LiveScreen, is AppScreen.VirtualDisplay, is AppScreen.UniversalControl, is AppScreen.AudioStudio -> NavigationTab.DEVICES
                     is AppScreen.AiAssistant, is AppScreen.AiTaskDetails -> NavigationTab.AI_ASSISTANT
                     is AppScreen.Files, is AppScreen.FilePreview, is AppScreen.Transfers, is AppScreen.UniversalTransfer -> NavigationTab.FILES
                     is AppScreen.Settings -> NavigationTab.SETTINGS
@@ -227,11 +227,35 @@ class MainActivity : ComponentActivity() {
                                     if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
                                 }
                             )
+
+                            is AppScreen.VirtualDisplay -> VirtualDisplayScreen(
+                                deviceId = screen.deviceId,
+                                repository = repository,
+                                onNavigateBack = {
+                                    if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
+                                }
+                            )
+
+                            is AppScreen.UniversalControl -> UniversalControlScreen(
+                                deviceId = screen.deviceId,
+                                repository = repository,
+                                onNavigateBack = {
+                                    if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
+                                }
+                            )
+
+                            is AppScreen.AudioStudio -> AudioStudioScreen(
+                                deviceId = screen.deviceId,
+                                repository = repository,
+                                onNavigateBack = {
+                                    if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
+                                }
+                            )
                         }
                     }
 
-                    // Layer 3: Floating Bottom Navigation Capsule (Hidden during full-screen screenshot, live mirror, or trackpad)
-                    if (currentScreen !is AppScreen.ScreenshotViewer && currentScreen !is AppScreen.RemoteControl && currentScreen !is AppScreen.LiveScreen && !isBooting) {
+                    // Layer 3: Floating Bottom Navigation Capsule (Hidden during full-screen modes)
+                    if (currentScreen !is AppScreen.ScreenshotViewer && currentScreen !is AppScreen.RemoteControl && currentScreen !is AppScreen.LiveScreen && currentScreen !is AppScreen.VirtualDisplay && !isBooting) {
                         ForgeFloatingNavigationBar(
                             selectedTab = activeTab,
                             onTabSelected = { tab ->

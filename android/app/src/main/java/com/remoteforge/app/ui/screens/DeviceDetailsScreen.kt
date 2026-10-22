@@ -531,6 +531,62 @@ fun DeviceDetailsScreen(
                 }
             }
 
+            // Multimedia & Hardware KVM
+            Text(
+                text = "MULTIMEDIA & HARDWARE KVM",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = TextMutedDark
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                QuickActionCard(
+                    title = "Virtual Display",
+                    subtitle = "Secondary touch monitor",
+                    icon = Icons.Rounded.Tv,
+                    accentColor = RoyalViolet,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (device != null) {
+                        onNavigate(AppScreen.VirtualDisplay(device.id))
+                    }
+                }
+
+                QuickActionCard(
+                    title = "Universal Control",
+                    subtitle = "Edge cursor hopping",
+                    icon = Icons.Rounded.NearMe,
+                    accentColor = NeonIndigo,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (device != null) {
+                        onNavigate(AppScreen.UniversalControl(device.id))
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                QuickActionCard(
+                    title = "Audio Studio",
+                    subtitle = "PC sound & wireless mic",
+                    icon = Icons.Rounded.GraphicEq,
+                    accentColor = EmeraldOnline,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (device != null) {
+                        onNavigate(AppScreen.AudioStudio(device.id))
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
 
             // Fun & App Management Controls
             Row(

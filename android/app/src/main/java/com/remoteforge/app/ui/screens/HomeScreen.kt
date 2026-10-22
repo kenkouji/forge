@@ -526,6 +526,59 @@ fun HomeScreen(
             }
 
             // ==========================================
+            // Multimedia & Hardware KVM Tools
+            // ==========================================
+            ForgeSectionHeader(
+                title = "Hardware KVM & Streaming",
+                subtitle = "Virtual display, edge hopping & audio"
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ForgeQuickActionCard(
+                    title = "Virtual Display",
+                    subtitle = "Secondary touch monitor",
+                    icon = Icons.Rounded.Tv,
+                    accentColor = if (forgeColors.isDark) RoyalViolet else LightAccent,
+                    onClick = {
+                        currentDev?.let { onNavigate(AppScreen.VirtualDisplay(it.id)) }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+
+                ForgeQuickActionCard(
+                    title = "Universal Control",
+                    subtitle = "Edge cursor hopping",
+                    icon = Icons.Rounded.NearMe,
+                    accentColor = if (forgeColors.isDark) LavenderAccent else LightAccent,
+                    onClick = {
+                        currentDev?.let { onNavigate(AppScreen.UniversalControl(it.id)) }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ForgeQuickActionCard(
+                    title = "Audio Studio",
+                    subtitle = "PC sound & wireless mic",
+                    icon = Icons.Rounded.GraphicEq,
+                    accentColor = if (forgeColors.isDark) RoyalViolet else LightAccent,
+                    onClick = {
+                        currentDev?.let { onNavigate(AppScreen.AudioStudio(it.id)) }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            // ==========================================
             // 6. Recent Audit Trail Activity Preview
             // ==========================================
             ForgeSectionHeader(

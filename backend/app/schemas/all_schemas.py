@@ -360,3 +360,120 @@ class PromoteFileRequest(BaseModel):
     target_directory: str
 
 
+# ==========================================
+# 1. Virtual Extended Display Schemas
+# ==========================================
+class VirtualDisplayStartRequest(BaseModel):
+    device_id: str
+    width: int = 1920
+    height: int = 1080
+    fps: int = 60
+    dpi: int = 240
+    color_depth: str = "32bit"
+    enable_touch: bool = True
+
+class VirtualDisplayStopRequest(BaseModel):
+    device_id: str
+
+class VirtualDisplayStatusResponse(BaseModel):
+    device_id: str
+    is_active: bool
+    width: int
+    height: int
+    fps: int
+    current_fps: float = 0.0
+    latency_ms: float = 0.0
+    touch_enabled: bool = True
+    session_id: Optional[str] = None
+    started_at: Optional[datetime.datetime] = None
+
+class VirtualDisplayTouchRequest(BaseModel):
+    device_id: str
+    action: str  # "down", "up", "move", "scroll", "right_click", "double_click"
+    norm_x: float  # 0.0 to 1.0
+    norm_y: float  # 0.0 to 1.0
+    scroll_dx: Optional[float] = 0.0
+    scroll_dy: Optional[float] = 0.0
+
+
+# ==========================================
+# 2. Universal Control Edge Mouse Hopping Schemas
+# ==========================================
+class EdgeControlConfigRequest(BaseModel):
+    device_id: str
+    edge: str = "RIGHT"  # "LEFT", "RIGHT", "TOP", "BOTTOM"
+    sensitivity: float = 1.0
+    dwell_delay_ms: int = 80
+    enable_keyboard: bool = True
+    enable_clipboard_sync: bool = True
+
+class EdgeControlStatusResponse(BaseModel):
+    device_id: str
+    is_enabled: bool
+    configured_edge: str
+    is_remote_active: bool
+    cursor_x: float = 0.5
+    cursor_y: float = 0.5
+    last_handoff_at: Optional[datetime.datetime] = None
+
+class EdgeHandoffEvent(BaseModel):
+    device_id: str
+    event_type: str  # "ENTER_REMOTE", "EXIT_REMOTE", "CURSOR_MOVE", "KEY_EVENT", "CLICK"
+    norm_x: float = 0.5
+    norm_y: float = 0.5
+    button: Optional[str] = None
+    key_code: Optional[str] = None
+    is_pressed: Optional[bool] = None
+
+
+# ==========================================
+# 3. P2P Mesh Tunneling Schemas
+# ==========================================
+class P2pConfigResponse(BaseModel):
+    stun_servers: List[str]
+    turn_servers: List[Dict[str, str]]
+    relay_fallback_enabled: bool = True
+
+class P2pSessionCreateRequest(BaseModel):
+    device_id: str
+    client_type: str = "android"  # "android", "web", "desktop"
+
+class P2pSessionResponse(BaseModel):
+    session_id: str
+    device_id: str
+    status: str  # "INITIATING", "CONNECTED", "FAILED", "DISCONNECTED"
+    signaling_channel_ws: str
+    created_at: datetime.datetime
+
+class P2pSignalMessage(BaseModel):
+    session_id: str
+    sender_type: str  # "client" or "agent"
+    signal_type: str  # "offer", "answer", "candidate", "ping", "bye"
+    payload_json: str
+
+
+# ==========================================
+# 4. Low-Latency Bi-Directional Audio Schemas
+# ==========================================
+class AudioSessionStartRequest(BaseModel):
+    device_id: str
+    mode: str = "sink"  # "sink" (PC->Phone), "source" (Phone->PC Mic), "duplex"
+    sample_rate: int = 48000
+    channels: int = 2
+    bit_depth: int = 16
+    codec: str = "pcm"  # "pcm", "opus"
+
+class AudioSessionStopRequest(BaseModel):
+    device_id: str
+
+class AudioStatusResponse(BaseModel):
+    device_id: str
+    is_active: bool
+    mode: str
+    sample_rate: int
+    channels: int
+    codec: str
+    latency_ms: float = 0.0
+    packets_transferred: int = 0
+
+

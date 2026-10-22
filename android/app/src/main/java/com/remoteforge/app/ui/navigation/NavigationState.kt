@@ -29,4 +29,7 @@ sealed class AppScreen {
     data class ClipboardHistory(val deviceId: String? = null) : AppScreen()
     data class TaskManager(val deviceId: String? = null) : AppScreen()
     data class LiveScreen(val deviceId: String) : AppScreen()
+    data class VirtualDisplay(val deviceId: String) : AppScreen()
+    data class UniversalControl(val deviceId: String) : AppScreen()
+    data class AudioStudio(val deviceId: String) : AppScreen()
 }

@@ -496,3 +496,103 @@ async def client_websocket_endpoint(
                 "timestamp": time.time()
             })
 
+
+# =====================================================================
+# Real-Time Multimedia & Workstation WebSockets
+# =====================================================================
+
+AUDIO_CHANNELS: dict = {}
+
+@ws_router.websocket("/ws/audio/{device_id}")
+async def audio_websocket_endpoint(websocket: WebSocket, device_id: str):
+    """
+    High-throughput, ultra-low-latency binary audio channel.
+    Relays raw PCM / Opus chunks between host agent and mobile client.
+    """
+    await websocket.accept()
+    if device_id not in AUDIO_CHANNELS:
+        AUDIO_CHANNELS[device_id] = set()
+    AUDIO_CHANNELS[device_id].add(websocket)
+    try:
+        while True:
+            msg = await websocket.receive()
+            if "bytes" in msg and msg["bytes"]:
+                raw_bytes = msg["bytes"]
+                disconnected = set()
+                for peer in list(AUDIO_CHANNELS[device_id]):
+                    if peer != websocket:
+                        try:
+                            await peer.send_bytes(raw_bytes)
+                        except Exception:
+                            disconnected.add(peer)
+                for d in disconnected:
+                    AUDIO_CHANNELS[device_id].discard(d)
+            elif "text" in msg and msg["text"]:
+                raw_text = msg["text"]
+                for peer in list(AUDIO_CHANNELS[device_id]):
+                    if peer != websocket:
+                        try:
+                            await peer.send_text(raw_text)
+                        except Exception:
+                            pass
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        if device_id in AUDIO_CHANNELS:
+            AUDIO_CHANNELS[device_id].discard(websocket)
+
+
+P2P_SIGNAL_ROOMS: dict = {}
+
+@ws_router.websocket("/ws/p2p/signaling/{session_id}")
+async def p2p_signaling_endpoint(websocket: WebSocket, session_id: str):
+    """
+    Full-duplex WebRTC ICE and SDP signaling broker for peer-to-peer NAT traversal.
+    """
+    await websocket.accept()
+    if session_id not in P2P_SIGNAL_ROOMS:
+        P2P_SIGNAL_ROOMS[session_id] = set()
+    P2P_SIGNAL_ROOMS[session_id].add(websocket)
+    try:
+        while True:
+            raw_text = await websocket.receive_text()
+            for peer in list(P2P_SIGNAL_ROOMS[session_id]):
+                if peer != websocket:
+                    try:
+                        await peer.send_text(raw_text)
+                    except Exception:
+                        pass
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        if session_id in P2P_SIGNAL_ROOMS:
+            P2P_SIGNAL_ROOMS[session_id].discard(websocket)
+
+
+EDGE_CONTROL_ROOMS: dict = {}
+
+@ws_router.websocket("/ws/edge-control/{device_id}")
+async def edge_control_endpoint(websocket: WebSocket, device_id: str):
+    """
+    Ultra-low latency mouse pointer position and keystroke stream for Universal Control.
+    """
+    await websocket.accept()
+    if device_id not in EDGE_CONTROL_ROOMS:
+        EDGE_CONTROL_ROOMS[device_id] = set()
+    EDGE_CONTROL_ROOMS[device_id].add(websocket)
+    try:
+        while True:
+            raw_text = await websocket.receive_text()
+            for peer in list(EDGE_CONTROL_ROOMS[device_id]):
+                if peer != websocket:
+                    try:
+                        await peer.send_text(raw_text)
+                    except Exception:
+                        pass
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        if device_id in EDGE_CONTROL_ROOMS:
+            EDGE_CONTROL_ROOMS[device_id].discard(websocket)
+
+

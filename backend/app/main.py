@@ -24,6 +24,10 @@ from app.api.routes.automations import router as automations_router
 from app.api.routes.stream import router as stream_router
 from app.api.routes.clipboard import router as clipboard_router
 from app.api.routes.guest import router as guest_router
+from app.api.routes.virtual_display import router as virtual_display_router
+from app.api.routes.edge_control import router as edge_control_router
+from app.api.routes.p2p import router as p2p_router
+from app.api.routes.audio import router as audio_router
 from app.websocket.router import ws_router
 
 
@@ -148,6 +152,10 @@ app.include_router(automations_router, prefix="/api")
 app.include_router(stream_router, prefix="/api")
 app.include_router(clipboard_router, prefix="/api")
 app.include_router(guest_router, prefix="/api")
+app.include_router(virtual_display_router, prefix="/api")
+app.include_router(edge_control_router, prefix="/api")
+app.include_router(p2p_router, prefix="/api")
+app.include_router(audio_router, prefix="/api")
 app.include_router(ws_router)
 
 
