@@ -233,45 +233,26 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
 
     suspend fun autoConnect() = withContext(Dispatchers.IO) {
         _connectionState.value = ConnectionState.CONNECTING
-        _connectionStatusText.value = "Verifying VPN & Transport..."
+        _connectionStatusText.value = "Checking connection..."
 
-        // Step 1: Real Transport & Overlay Verification (RFC 6598 CGNAT 100.64.0.0/10)
-        val (targetHost, targetPort) = getTargetHostAndPort()
-        val transportResult = vpnManager.verifyTransportHealth(targetHost, targetPort)
-
-        val activeNetType = vpnManager.detectActiveNetworkType()
-        _latencyMetrics.value = _latencyMetrics.value.copy(
-            networkType = activeNetType,
-            overlayRttMs = if (transportResult.isMacReachable) transportResult.latencyMs else null,
-            netbirdPathType = "Relayed (Mumbai)"
-        )
-
-        if (!transportResult.isInstalled) {
-            _connectionState.value = ConnectionState.SETUP_REQUIRED
-            _connectionStatusText.value = "NetBird companion app required"
-            _lastError.value = transportResult.failureReason
-            return@withContext
-        }
-
-        if (!transportResult.isOverlayActive) {
-            _connectionState.value = ConnectionState.SETUP_REQUIRED
-            _connectionStatusText.value = "NetBird VPN is disconnected. Open NetBird to connect."
-            _lastError.value = transportResult.failureReason
-            return@withContext
-        }
-
-        if (!transportResult.isMacReachable) {
-            _connectionState.value = ConnectionState.RECONNECTING
-            _connectionStatusText.value = "Mac overlay unreachable at $targetHost:$targetPort. Retrying..."
-            _lastError.value = transportResult.failureReason
-            scheduleAutoReconnect()
-            return@withContext
-        }
-
-        _connectionStatusText.value = "Connecting to private Mac gateway..."
-
-        // Step 2: Gateway Health Ping (Direct private overlay)
+        // Step 1: Probe direct reachability (Current URL, ADB Wire Reverse, Local LAN, or VPN overlay)
         var (healthOk, healthMsg) = pingHealth()
+
+        // If current URL failed, probe direct ADB wire reverse (127.0.0.1:8090)
+        if (!healthOk && networkConfig.serverUrl != "http://127.0.0.1:8090") {
+            val prevUrl = networkConfig.serverUrl
+            networkConfig.serverUrl = "http://127.0.0.1:8090"
+            val (wireOk, wireMsg) = pingHealth()
+            if (wireOk) {
+                healthOk = true
+                healthMsg = wireMsg
+                Log.i("RemoteForgeRepository", "Connected via direct ADB wire reverse (127.0.0.1:8090)")
+            } else {
+                networkConfig.serverUrl = prevUrl
+            }
+        }
+
+        // If still failing and stable VPN overlay URL is configured, probe it
         if (!healthOk && networkConfig.serverUrl != networkConfig.stableVpnUrl) {
             val prevUrl = networkConfig.serverUrl
             networkConfig.serverUrl = networkConfig.stableVpnUrl
@@ -285,7 +266,32 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
             }
         }
 
+        // If direct ping failed everywhere, check NetBird companion status to advise user
         if (!healthOk) {
+            val (targetHost, targetPort) = getTargetHostAndPort()
+            val transportResult = vpnManager.verifyTransportHealth(targetHost, targetPort)
+
+            val activeNetType = vpnManager.detectActiveNetworkType()
+            _latencyMetrics.value = _latencyMetrics.value.copy(
+                networkType = activeNetType,
+                overlayRttMs = if (transportResult.isMacReachable) transportResult.latencyMs else null,
+                netbirdPathType = "Relayed"
+            )
+
+            if (!transportResult.isInstalled) {
+                _connectionState.value = ConnectionState.SETUP_REQUIRED
+                _connectionStatusText.value = "NetBird companion app required or connect to Wi-Fi/USB"
+                _lastError.value = transportResult.failureReason
+                return@withContext
+            }
+
+            if (!transportResult.isOverlayActive) {
+                _connectionState.value = ConnectionState.SETUP_REQUIRED
+                _connectionStatusText.value = "Connect to Wi-Fi/USB or activate NetBird VPN."
+                _lastError.value = transportResult.failureReason
+                return@withContext
+            }
+
             _connectionState.value = ConnectionState.RECONNECTING
             _connectionStatusText.value = "Gateway unreachable ($healthMsg). Retrying..."
             _lastError.value = healthMsg
@@ -293,13 +299,16 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
             return@withContext
         }
 
-        // Step 3: Authenticate using saved session if needed
+        _connectionStatusText.value = "Connecting to workstation gateway..."
+
+        // Step 2: Authenticate using saved session or re-login if expired
         var currentToken = networkConfig.authToken
+        val u = networkConfig.savedUsername ?: "admin"
+        val p = networkConfig.savedPassword ?: "remoteforge_secure_pass"
+
         if (currentToken == null) {
             _connectionState.value = ConnectionState.AUTHENTICATING
             _connectionStatusText.value = "Authenticating..."
-            val u = networkConfig.savedUsername ?: "admin"
-            val p = networkConfig.savedPassword ?: "remoteforge_secure_pass"
             val (loginOk, loginErr) = login(u, p)
             if (!loginOk) {
                 _connectionState.value = ConnectionState.ERROR
@@ -314,8 +323,20 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
             wsClient.connect(networkConfig.serverUrl, currentToken)
         }
 
-        // Step 4: Fetch Registered Devices & Live Mac Agent Verification
-        val devList = refreshDevices()
+        // Step 3: Fetch Registered Devices & Live Mac Agent Verification
+        var devList = refreshDevices()
+        if (devList.isEmpty()) {
+            // Check if token was expired by attempting fresh login
+            val (reloginOk, _) = login(u, p)
+            if (reloginOk) {
+                currentToken = networkConfig.authToken
+                if (currentToken != null) {
+                    wsClient.connect(networkConfig.serverUrl, currentToken)
+                    devList = refreshDevices()
+                }
+            }
+        }
+
         if (devList.isEmpty()) {
             _connectionState.value = ConnectionState.CONNECTED
             _connectionStatusText.value = "Connected (No Mac agent registered)"
@@ -437,7 +458,15 @@ class RemoteForgeRepository(val networkConfig: NetworkConfig, private val contex
         val token = networkConfig.authToken ?: return@withContext emptyList()
         val service = networkConfig.apiService ?: return@withContext emptyList()
         try {
-            val res = service.getDevices("Bearer $token")
+            var res = service.getDevices("Bearer $token")
+            if (res.code() == 401) {
+                val u = networkConfig.savedUsername ?: "admin"
+                val p = networkConfig.savedPassword ?: "remoteforge_secure_pass"
+                val (loginOk, _) = login(u, p)
+                if (loginOk && networkConfig.authToken != null) {
+                    res = service.getDevices("Bearer ${networkConfig.authToken}")
+                }
+            }
             if (res.isSuccessful && res.body() != null) {
                 val list = res.body()!!
                 _devices.value = list
