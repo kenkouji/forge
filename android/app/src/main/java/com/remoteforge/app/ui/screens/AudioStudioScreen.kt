@@ -42,6 +42,7 @@ fun AudioStudioScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val audioManager = remember { AudioStreamManager(context) }
+    val liveAmplitude by audioManager.amplitude.collectAsState()
 
     var selectedMode by remember { mutableStateOf("sink") } // "sink" (PC->Phone) or "source" (Phone->PC Mic)
     var isStreaming by remember { mutableStateOf(false) }
@@ -200,9 +201,10 @@ fun AudioStudioScreen(
                         for (i in 0 until barCount) {
                             val x = i * (barWidth * 1.5f) + barWidth * 0.25f
                             val normalizedHeight = if (isStreaming && !isMuted) {
+                                val ampFactor = (liveAmplitude * 2.5f).coerceIn(0.18f, 1.0f)
                                 val wave1 = sin(phase + i * 0.35f) * 0.5f + 0.5f
                                 val wave2 = sin(phase * 1.4f + i * 0.6f) * 0.3f + 0.3f
-                                ((wave1 + wave2) / 1.6f).coerceIn(0.12f, 1.0f)
+                                (((wave1 + wave2) / 1.6f) * ampFactor).coerceIn(0.12f, 1.0f)
                             } else {
                                 0.08f
                             }

@@ -83,6 +83,13 @@ def main():
         dispatcher=dispatcher
     )
 
+    # Wire context to dispatcher, edge control, and audio engine
+    dispatcher.set_agent_context(
+        device_id=args.device_id,
+        server_ws_url=server_ws_url,
+        send_fn=conn.send_message_sync
+    )
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 

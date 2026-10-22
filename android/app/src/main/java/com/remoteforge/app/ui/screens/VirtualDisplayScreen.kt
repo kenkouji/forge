@@ -202,37 +202,73 @@ fun VirtualDisplayScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(Unit) {
+                    .pointerInput(currentBitmap) {
                         detectTapGestures(
                             onTap = { offset ->
                                 coroutineScope.launch {
-                                    val normX = (offset.x / size.width).coerceIn(0f, 1f)
-                                    val normY = (offset.y / size.height).coerceIn(0f, 1f)
+                                    val bmp = currentBitmap
+                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                        val renW = bmp.width * scale
+                                        val renH = bmp.height * scale
+                                        val offX = (size.width - renW) / 2f
+                                        val offY = (size.height - renH) / 2f
+                                        (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
+                                    } else {
+                                        (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
+                                    }
                                     repository.injectVirtualDisplayTouch(deviceId, "click", normX, normY)
                                 }
                             },
                             onDoubleTap = { offset ->
                                 coroutineScope.launch {
-                                    val normX = (offset.x / size.width).coerceIn(0f, 1f)
-                                    val normY = (offset.y / size.height).coerceIn(0f, 1f)
+                                    val bmp = currentBitmap
+                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                        val renW = bmp.width * scale
+                                        val renH = bmp.height * scale
+                                        val offX = (size.width - renW) / 2f
+                                        val offY = (size.height - renH) / 2f
+                                        (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
+                                    } else {
+                                        (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
+                                    }
                                     repository.injectVirtualDisplayTouch(deviceId, "double_click", normX, normY)
                                 }
                             },
                             onLongPress = { offset ->
                                 coroutineScope.launch {
-                                    val normX = (offset.x / size.width).coerceIn(0f, 1f)
-                                    val normY = (offset.y / size.height).coerceIn(0f, 1f)
+                                    val bmp = currentBitmap
+                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                        val renW = bmp.width * scale
+                                        val renH = bmp.height * scale
+                                        val offX = (size.width - renW) / 2f
+                                        val offY = (size.height - renH) / 2f
+                                        (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
+                                    } else {
+                                        (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
+                                    }
                                     repository.injectVirtualDisplayTouch(deviceId, "right_click", normX, normY)
                                 }
                             }
                         )
                     }
-                    .pointerInput(Unit) {
+                    .pointerInput(currentBitmap) {
                         detectDragGestures(
                             onDragStart = { offset ->
                                 coroutineScope.launch {
-                                    val normX = (offset.x / size.width).coerceIn(0f, 1f)
-                                    val normY = (offset.y / size.height).coerceIn(0f, 1f)
+                                    val bmp = currentBitmap
+                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                        val renW = bmp.width * scale
+                                        val renH = bmp.height * scale
+                                        val offX = (size.width - renW) / 2f
+                                        val offY = (size.height - renH) / 2f
+                                        (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
+                                    } else {
+                                        (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
+                                    }
                                     repository.injectVirtualDisplayTouch(deviceId, "drag_start", normX, normY)
                                 }
                             },
@@ -244,8 +280,17 @@ fun VirtualDisplayScreen(
                             onDrag = { change, dragAmount ->
                                 change.consume()
                                 coroutineScope.launch {
-                                    val normX = (change.position.x / size.width).coerceIn(0f, 1f)
-                                    val normY = (change.position.y / size.height).coerceIn(0f, 1f)
+                                    val bmp = currentBitmap
+                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                        val renW = bmp.width * scale
+                                        val renH = bmp.height * scale
+                                        val offX = (size.width - renW) / 2f
+                                        val offY = (size.height - renH) / 2f
+                                        (((change.position.x - offX) / renW).coerceIn(0f, 1f)) to (((change.position.y - offY) / renH).coerceIn(0f, 1f))
+                                    } else {
+                                        (change.position.x / size.width).coerceIn(0f, 1f) to (change.position.y / size.height).coerceIn(0f, 1f)
+                                    }
                                     repository.injectVirtualDisplayTouch(
                                         deviceId = deviceId,
                                         action = "move",

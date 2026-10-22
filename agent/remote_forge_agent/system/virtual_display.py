@@ -86,8 +86,9 @@ class VirtualDisplayManager:
         Translates normalized touch coordinates [0.0, 1.0] to native screen space
         and injects mouse/gesture events via input_service.
         """
-        w = target_width or self.width
-        h = target_height or self.height
+        dim = input_service.get_screen_dimensions()
+        w = dim.get("width") or target_width or self.width
+        h = dim.get("height") or target_height or self.height
         pixel_x = int(norm_x * w)
         pixel_y = int(norm_y * h)
 

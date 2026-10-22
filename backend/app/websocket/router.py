@@ -16,6 +16,8 @@ from app.models.entities import Task
 logger = logging.getLogger("remoteforge.ws_router")
 ws_router = APIRouter(tags=["WebSockets"])
 
+EDGE_CONTROL_ROOMS: dict = {}
+
 @ws_router.websocket("/ws/agent")
 async def agent_websocket_endpoint(
     websocket: WebSocket,
@@ -120,6 +122,17 @@ async def agent_websocket_endpoint(
                     })
                 except Exception as ce:
                     logger.warning(f"Error processing clipboard_update: {ce}")
+
+            elif msg_type in ("edge_handoff", "pointer_move"):
+                dev = data.get("device_id") or device_id
+                raw_json = json.dumps(data)
+                if dev in EDGE_CONTROL_ROOMS:
+                    for peer in list(EDGE_CONTROL_ROOMS[dev]):
+                        try:
+                            await peer.send_text(raw_json)
+                        except Exception:
+                            pass
+                await ws_manager.broadcast_to_clients(data)
 
             else:
                 logger.debug(f"Unhandled agent message type: {msg_type}")
@@ -583,6 +596,22 @@ async def edge_control_endpoint(websocket: WebSocket, device_id: str):
     try:
         while True:
             raw_text = await websocket.receive_text()
+            try:
+                data = json.loads(raw_text)
+                if isinstance(data, dict):
+                    action = data.get("type") or data.get("action")
+                    if action in ("EXIT_REMOTE", "return_cursor", "snap_back"):
+                        # Send command to agent to return cursor to PC
+                        await ws_manager.send_command_to_agent(
+                            device_id=device_id,
+                            request_id=str(uuid.uuid4()),
+                            tool="edge_control_return_cursor",
+                            arguments={},
+                            timeout_seconds=2.0
+                        )
+            except Exception:
+                pass
+
             for peer in list(EDGE_CONTROL_ROOMS[device_id]):
                 if peer != websocket:
                     try:

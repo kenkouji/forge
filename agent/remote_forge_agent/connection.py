@@ -53,6 +53,15 @@ class AgentConnection:
             return not self._ws.closed
         return getattr(self._ws, "open", False)
 
+    def send_message_sync(self, payload: Dict[str, Any]):
+        if self._ws and self._is_ws_open():
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.run_coroutine_threadsafe(self._ws.send(json.dumps(payload)), loop)
+            except Exception as e:
+                logger.debug(f"Error sending message from agent: {e}")
+
     async def _heartbeat_loop(self):
         while self._running and self._is_ws_open():
             try:

@@ -2,14 +2,14 @@
 RemoteForge Universal Control Edge Mouse Hopping Service (Agent)
 ================================================================
 Monitors display boundaries, detects cursor push-through gestures, locks local
-cursor to the edge, and streams normalized cursor coordinates to Android.
+cursor to the edge, and streams real-time normalized cursor coordinates to Android.
 """
 
 import sys
 import time
 import logging
 import threading
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
 from agent.remote_forge_agent.system.input_control import input_service
 
 logger = logging.getLogger("RemoteForgeEdgeControl")
@@ -24,8 +24,16 @@ class EdgeControlManager:
         self.enable_keyboard: bool = True
         self.enable_clipboard_sync: bool = True
         self.is_remote_active: bool = False
+        self.device_id: str = "macbook-pro"
+        self.send_fn: Optional[Callable[[Dict[str, Any]], None]] = None
         self.monitor_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
+        self._last_x: float = 0.0
+        self._last_y: float = 0.0
+
+    def set_context(self, device_id: str, send_fn: Optional[Callable[[Dict[str, Any]], None]] = None):
+        self.device_id = device_id
+        self.send_fn = send_fn
 
     def configure(
         self,
@@ -60,10 +68,33 @@ class EdgeControlManager:
 
     def return_cursor(self) -> Dict[str, Any]:
         """
-        Returns control to local workstation, releasing cursor lock.
+        Returns control to local workstation, releasing cursor lock and snapping back onto screen.
         """
         self.is_remote_active = False
-        logger.info("Cursor returned from remote device")
+        try:
+            dim = input_service.get_screen_dimensions()
+            scr_w = dim.get("width", 1280.0)
+            scr_h = dim.get("height", 800.0)
+            if self.configured_edge == "RIGHT":
+                input_service.move_mouse(int(scr_w - 70), int(scr_h / 2))
+            elif self.configured_edge == "LEFT":
+                input_service.move_mouse(70, int(scr_h / 2))
+            elif self.configured_edge == "TOP":
+                input_service.move_mouse(int(scr_w / 2), 70)
+            else:
+                input_service.move_mouse(int(scr_w / 2), int(scr_h - 70))
+        except Exception as e:
+            logger.debug(f"Error repositioning cursor on return: {e}")
+
+        if self.send_fn:
+            self.send_fn({
+                "type": "edge_handoff",
+                "device_id": self.device_id,
+                "event": "EXIT_REMOTE",
+                "edge": self.configured_edge
+            })
+
+        logger.info("Cursor returned from remote device to local screen")
         return {"status": "returned", "is_remote_active": False}
 
     def _start_monitor_thread(self):
@@ -75,41 +106,90 @@ class EdgeControlManager:
 
     def _monitor_loop(self):
         """
-        Background loop checking cursor position against configured edge.
+        Background loop checking cursor position against configured edge and streaming coordinates.
         """
         dwell_start = 0.0
         while not self._stop_event.is_set() and self.is_enabled:
-            time.sleep(0.04)  # 25Hz poll rate for low CPU impact
+            time.sleep(0.04)  # 25Hz poll rate for responsive low-latency hopping
             try:
                 pos = input_service.get_mouse_position()
                 if not pos:
                     continue
-                cur_x, cur_y = pos.get("x", 0), pos.get("y", 0)
+                cur_x, cur_y = float(pos.get("x", 0)), float(pos.get("y", 0))
 
-                # Fetch screen dimensions
                 dim = input_service.get_screen_dimensions()
-                scr_w, scr_h = dim.get("width", 1920), dim.get("height", 1080)
+                scr_w = float(dim.get("width", 1280.0))
+                scr_h = float(dim.get("height", 800.0))
 
                 hit_edge = False
-                if self.configured_edge == "RIGHT" and cur_x >= scr_w - 4:
+                if self.configured_edge == "RIGHT" and cur_x >= scr_w - 5:
                     hit_edge = True
-                elif self.configured_edge == "LEFT" and cur_x <= 4:
+                elif self.configured_edge == "LEFT" and cur_x <= 5:
                     hit_edge = True
-                elif self.configured_edge == "BOTTOM" and cur_y >= scr_h - 4:
+                elif self.configured_edge == "BOTTOM" and cur_y >= scr_h - 5:
                     hit_edge = True
-                elif self.configured_edge == "TOP" and cur_y <= 4:
+                elif self.configured_edge == "TOP" and cur_y <= 5:
                     hit_edge = True
 
                 if hit_edge and not self.is_remote_active:
                     if dwell_start == 0.0:
                         dwell_start = time.time()
                     elif (time.time() - dwell_start) * 1000 >= self.dwell_delay_ms:
-                        # Hop to remote!
+                        # Hop to remote Android device!
                         self.is_remote_active = True
                         dwell_start = 0.0
+                        self._last_x = cur_x
+                        self._last_y = cur_y
                         logger.info(f"Edge crossed on {self.configured_edge}! Transferred cursor to remote device.")
-                elif not hit_edge:
+                        if self.send_fn:
+                            self.send_fn({
+                                "type": "edge_handoff",
+                                "device_id": self.device_id,
+                                "event": "ENTER_REMOTE",
+                                "edge": self.configured_edge,
+                                "norm_x": max(0.0, min(1.0, cur_x / scr_w)),
+                                "norm_y": max(0.0, min(1.0, cur_y / scr_h))
+                            })
+                elif not hit_edge and not self.is_remote_active:
                     dwell_start = 0.0
+
+                # While remote is active, check if user moves cursor back into PC screen or moves on phone
+                if self.is_remote_active:
+                    moved_inward = False
+                    if self.configured_edge == "RIGHT" and cur_x < scr_w - 30:
+                        moved_inward = True
+                    elif self.configured_edge == "LEFT" and cur_x > 30:
+                        moved_inward = True
+                    elif self.configured_edge == "TOP" and cur_y > 30:
+                        moved_inward = True
+                    elif self.configured_edge == "BOTTOM" and cur_y < scr_h - 30:
+                        moved_inward = True
+
+                    if moved_inward:
+                        self.is_remote_active = False
+                        logger.info(f"Cursor returned to PC from {self.configured_edge} edge")
+                        if self.send_fn:
+                            self.send_fn({
+                                "type": "edge_handoff",
+                                "device_id": self.device_id,
+                                "event": "EXIT_REMOTE",
+                                "edge": self.configured_edge
+                            })
+                    else:
+                        dx = cur_x - self._last_x
+                        dy = cur_y - self._last_y
+                        self._last_x = cur_x
+                        self._last_y = cur_y
+                        if self.send_fn and (abs(dx) > 0.5 or abs(dy) > 0.5):
+                            self.send_fn({
+                                "type": "pointer_move",
+                                "device_id": self.device_id,
+                                "edge": self.configured_edge,
+                                "dx": dx,
+                                "dy": dy,
+                                "norm_x": max(0.0, min(1.0, cur_x / scr_w)),
+                                "norm_y": max(0.0, min(1.0, cur_y / scr_h))
+                            })
 
             except Exception as e:
                 pass

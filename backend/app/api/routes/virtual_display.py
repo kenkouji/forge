@@ -257,44 +257,61 @@ async def virtual_display_stream_feed(
     height = session["height"] if session else 1080
 
     async def frame_generator():
-        # High performance streaming loop
+        import base64
+        import time
         from PIL import Image, ImageDraw
         import io
-        import time
 
-        frame_interval = 1.0 / max(1, fps)
-        hue = 0
+        frame_interval = 1.0 / max(1, min(fps, 60))
+        target_w = min(width, 1440)
+
+        # Pre-generate standby fallback frame if agent is connecting
+        standby_bytes = None
+        try:
+            im = Image.new("RGB", (min(width, 1280), min(height, 720)), (18, 20, 29))
+            draw = ImageDraw.Draw(im)
+            draw.rectangle([(20, 20), (min(width, 1280) - 20, min(height, 720) - 20)], outline=(40, 48, 70), width=2)
+            draw.text((40, 40), f"RemoteForge Virtual Display • Connecting to Host Display...", fill=(160, 180, 220))
+            buf = io.BytesIO()
+            im.save(buf, format="JPEG", quality=quality)
+            standby_bytes = buf.getvalue()
+        except Exception:
+            pass
 
         while True:
             t_start = time.perf_counter()
-            # If agent has delivered a real frame, we yield it, otherwise render virtual display desktop frame
-            try:
-                # Render crisp high-tech secondary desktop background
-                im = Image.new("RGB", (min(width, 1280), min(height, 720)), (18, 20, 29))
-                draw = ImageDraw.Draw(im)
-                
-                # Subtle secondary screen grid
-                draw.rectangle([(20, 20), (min(width, 1280) - 20, min(height, 720) - 20)], outline=(40, 48, 70), width=2)
-                draw.text((40, 40), f"RemoteForge Virtual Display 2.0 • {width}x{height}", fill=(160, 180, 220))
-                draw.text((40, 70), f"Status: Live extended monitor • Target: {fps} FPS", fill=(100, 210, 150))
-                
-                # Dynamic clock and activity pulse
-                now_str = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-4]
-                draw.text((40, 100), f"Active Render Sync: {now_str}", fill=(120, 140, 170))
+            frame_bytes = None
 
-                buf = io.BytesIO()
-                im.save(buf, format="JPEG", quality=quality)
-                frame_bytes = buf.getvalue()
+            if ws_manager.is_agent_online(device_id):
+                req_id = str(uuid.uuid4())
+                try:
+                    res = await ws_manager.send_command_to_agent(
+                        device_id=device_id,
+                        request_id=req_id,
+                        tool="get_stream_frame",
+                        arguments={"width": target_w, "quality": quality},
+                        timeout_seconds=2.0
+                    )
+                    if res and res.get("success") and res.get("result"):
+                        b64_data = res["result"].get("data_base64")
+                        if b64_data:
+                            frame_bytes = base64.b64decode(b64_data)
+                except Exception as e:
+                    logger.debug(f"Virtual display frame capture timeout or error: {e}")
 
-                yield (
-                    b"--frame\r\n"
-                    b"Content-Type: image/jpeg\r\n"
-                    b"Content-Length: " + str(len(frame_bytes)).encode() + b"\r\n\r\n" +
-                    frame_bytes + b"\r\n"
-                )
-            except Exception as e:
-                logger.error(f"Error in virtual display frame generator: {e}")
-                break
+            if not frame_bytes and standby_bytes:
+                frame_bytes = standby_bytes
+
+            if frame_bytes:
+                try:
+                    yield (
+                        b"--frame\r\n"
+                        b"Content-Type: image/jpeg\r\n"
+                        b"Content-Length: " + str(len(frame_bytes)).encode() + b"\r\n\r\n" +
+                        frame_bytes + b"\r\n"
+                    )
+                except Exception:
+                    break
 
             elapsed = time.perf_counter() - t_start
             sleep_duration = max(0.005, frame_interval - elapsed)

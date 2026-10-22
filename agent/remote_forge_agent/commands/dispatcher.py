@@ -32,6 +32,17 @@ class CommandDispatcher:
             "is_transfers_stopped": False
         }
 
+        self.device_id: str = "macbook-pro"
+        self.server_ws_url: str = "ws://127.0.0.1:8090"
+        self.send_message_fn: Optional[Callable[[Dict[str, Any]], None]] = None
+
+    def set_agent_context(self, device_id: str, server_ws_url: str, send_fn: Optional[Callable[[Dict[str, Any]], None]] = None):
+        self.device_id = device_id
+        self.server_ws_url = server_ws_url
+        self.send_message_fn = send_fn
+        edge_control_manager.set_context(device_id=device_id, send_fn=send_fn)
+        audio_engine.set_context(device_id=device_id, server_ws_url=server_ws_url)
+
         self.registry: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
             "get_system_status": self._handle_system_status,
             "take_screenshot": self._handle_screenshot,

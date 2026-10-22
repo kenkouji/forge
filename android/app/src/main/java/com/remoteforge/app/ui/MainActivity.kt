@@ -254,8 +254,14 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // Layer 3: Floating Bottom Navigation Capsule (Hidden during full-screen modes)
-                    if (currentScreen !is AppScreen.ScreenshotViewer && currentScreen !is AppScreen.RemoteControl && currentScreen !is AppScreen.LiveScreen && currentScreen !is AppScreen.VirtualDisplay && !isBooting) {
+                    // Layer 3: Floating Bottom Navigation Capsule (Hidden during full-screen & studio modes)
+                    val isFullScreenMode = currentScreen is AppScreen.ScreenshotViewer ||
+                            currentScreen is AppScreen.RemoteControl ||
+                            currentScreen is AppScreen.LiveScreen ||
+                            currentScreen is AppScreen.VirtualDisplay ||
+                            currentScreen is AppScreen.UniversalControl ||
+                            currentScreen is AppScreen.AudioStudio
+                    if (!isFullScreenMode && !isBooting) {
                         ForgeFloatingNavigationBar(
                             selectedTab = activeTab,
                             onTabSelected = { tab ->

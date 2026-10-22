@@ -31,6 +31,9 @@ class AudioStreamManager(private val context: Context) {
     private val _volume = MutableStateFlow(1.0f)
     val volume: StateFlow<Float> = _volume
 
+    private val _amplitude = MutableStateFlow(0.0f)
+    val amplitude: StateFlow<Float> = _amplitude
+
     private var audioTrack: AudioTrack? = null
     private var audioRecord: AudioRecord? = null
     private val isRecording = AtomicBoolean(false)
@@ -75,6 +78,7 @@ class AudioStreamManager(private val context: Context) {
 
     fun stopPlayback() {
         _isSinkActive.value = false
+        _amplitude.value = 0.0f
         try {
             audioTrack?.stop()
             audioTrack?.release()
@@ -103,6 +107,20 @@ class AudioStreamManager(private val context: Context) {
                 if (_isSinkActive.value && audioTrack != null) {
                     val rawData = bytes.toByteArray()
                     audioTrack?.write(rawData, 0, rawData.size)
+
+                    // Compute RMS amplitude for visualizer
+                    var sumSquares = 0.0
+                    val sampleCount = rawData.size / 2
+                    for (i in 0 until rawData.size - 1 step 2) {
+                        val sample = (rawData[i].toInt() and 0xFF) or (rawData[i + 1].toInt() shl 8)
+                        val shortVal = sample.toShort()
+                        sumSquares += shortVal * shortVal
+                    }
+                    if (sampleCount > 0) {
+                        val rms = Math.sqrt(sumSquares / sampleCount)
+                        val normalized = (rms / 32767.0).toFloat().coerceIn(0f, 1f)
+                        _amplitude.value = normalized
+                    }
                 }
             }
 

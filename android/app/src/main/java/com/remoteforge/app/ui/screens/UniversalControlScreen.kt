@@ -6,7 +6,9 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,6 +28,10 @@ import com.remoteforge.app.data.repository.RemoteForgeRepository
 import com.remoteforge.app.ui.components.GlassCard
 import com.remoteforge.app.ui.theme.*
 import kotlinx.coroutines.launch
+import okhttp3.Request
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +50,10 @@ fun UniversalControlScreen(
     var enableClipboard by remember { mutableStateOf(true) }
     var isEnabled by remember { mutableStateOf(true) }
     var isRemoteActive by remember { mutableStateOf(false) }
+
+    var cursorNormX by remember { mutableFloatStateOf(0.5f) }
+    var cursorNormY by remember { mutableFloatStateOf(0.5f) }
+    var edgeWebSocket by remember { mutableStateOf<WebSocket?>(null) }
 
     // Edge glow infinite animation
     val infiniteTransition = rememberInfiniteTransition(label = "EdgeGlow")
@@ -63,6 +74,69 @@ fun UniversalControlScreen(
             configuredEdge = status.configuredEdge
             isEnabled = status.isEnabled
             isRemoteActive = status.isRemoteActive
+        }
+    }
+
+    // Connect to ultra-low latency WebSocket for mouse hopping and pointer stream
+    DisposableEffect(deviceId) {
+        val serverUrl = repository.networkConfig.serverUrl
+            .replace("http://", "ws://")
+            .replace("https://", "wss://")
+            .trimEnd('/')
+        val wsUrl = "$serverUrl/ws/edge-control/$deviceId"
+        val client = repository.networkConfig.okHttpClient
+        val request = Request.Builder().url(wsUrl).build()
+
+        val ws = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                try {
+                    val obj = JSONObject(text)
+                    val type = obj.optString("type")
+                    val event = obj.optString("event")
+
+                    if (type == "edge_handoff") {
+                        if (event == "ENTER_REMOTE") {
+                            isRemoteActive = true
+                            cursorNormX = obj.optDouble("norm_x", 0.5).toFloat()
+                            cursorNormY = obj.optDouble("norm_y", 0.5).toFloat()
+                        } else if (event == "EXIT_REMOTE") {
+                            isRemoteActive = false
+                        }
+                    } else if (type == "pointer_move") {
+                        isRemoteActive = true
+                        val nx = obj.optDouble("norm_x", -1.0)
+                        val ny = obj.optDouble("norm_y", -1.0)
+                        if (nx >= 0 && ny >= 0) {
+                            cursorNormX = nx.toFloat()
+                            cursorNormY = ny.toFloat()
+                        } else {
+                            val dx = obj.optDouble("dx", 0.0).toFloat()
+                            val dy = obj.optDouble("dy", 0.0).toFloat()
+                            cursorNormX = (cursorNormX + (dx / 400f)).coerceIn(0f, 1f)
+                            cursorNormY = (cursorNormY + (dy / 400f)).coerceIn(0f, 1f)
+                        }
+                    }
+                } catch (ignored: Exception) {}
+            }
+        })
+        edgeWebSocket = ws
+
+        onDispose {
+            try {
+                ws.close(1000, "Screen disposed")
+            } catch (ignored: Exception) {}
+            edgeWebSocket = null
+        }
+    }
+
+    fun snapBackToPc() {
+        coroutineScope.launch {
+            try {
+                edgeWebSocket?.send(JSONObject().put("type", "EXIT_REMOTE").toString())
+            } catch (ignored: Exception) {}
+            repository.sendEdgeHandoff(deviceId, "EXIT_REMOTE", 0.5f, 0.5f)
+            isRemoteActive = false
+            Toast.makeText(context, "Cursor Snapped Back to PC", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -116,12 +190,15 @@ fun UniversalControlScreen(
             )
         }
     ) { padding ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(Color(0xFF0C0816))
         ) {
+            val screenWidth = maxWidth
+            val screenHeight = maxHeight
+
             // Visual Edge Barrier Glow along the active edge
             val edgeBrush = remember(configuredEdge, glowAlpha) {
                 when (configuredEdge) {
@@ -331,18 +408,36 @@ fun UniversalControlScreen(
                 // Action Buttons
                 if (isRemoteActive) {
                     Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                repository.sendEdgeHandoff(deviceId, "EXIT_REMOTE", 0.5f, 0.5f)
-                                isRemoteActive = false
-                            }
-                        },
+                        onClick = { snapBackToPc() },
                         colors = ButtonDefaults.buttonColors(containerColor = RoyalViolet),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Snap Cursor Back to PC", color = Color.White, fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+
+            // Live Floating Pointer Overlay when Mouse is hopped to Phone
+            if (isRemoteActive) {
+                val posX = screenWidth * cursorNormX - 16.dp
+                val posY = screenHeight * cursorNormY - 16.dp
+
+                Box(
+                    modifier = Modifier
+                        .offset(x = posX.coerceAtLeast(0.dp), y = posY.coerceAtLeast(0.dp))
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(RoyalViolet.copy(alpha = 0.4f))
+                        .border(2.dp, Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                    )
                 }
             }
         }
