@@ -13,7 +13,7 @@ import sys
 import ctypes
 import logging
 from typing import Optional, Tuple
-from PIL import Image
+from PIL import Image, ImageDraw
 
 logger = logging.getLogger("RemoteForgeScreenStreamer")
 
@@ -143,6 +143,43 @@ class ScreenStreamService:
             except Exception as e:
                 logger.error(f"Fallback ImageGrab failed: {e}")
                 return None, 0, 0, 0.0
+
+        # Draw mouse cursor directly on captured frame so it is always visible on phone
+        try:
+            from agent.remote_forge_agent.system.input_control import input_service
+            pos = input_service.get_mouse_position()
+            if pos:
+                mx, my = float(pos.get("x", 0)), float(pos.get("y", 0))
+                target_id = self.target_display_id if self.target_display_id else (_cg.CGMainDisplayID() if _cg else 0)
+                disp_ox, disp_oy = 0.0, 0.0
+                disp_w, disp_h = float(w), float(h)
+                if _cg and target_id:
+                    bounds = _cg.CGDisplayBounds(target_id)
+                    disp_ox, disp_oy = bounds.origin.x, bounds.origin.y
+                    disp_w, disp_h = bounds.size.width, bounds.size.height
+
+                rel_x = mx - disp_ox
+                rel_y = my - disp_oy
+
+                if 0 <= rel_x < disp_w and 0 <= rel_y < disp_h:
+                    draw = ImageDraw.Draw(img)
+                    scale_x = float(w) / float(disp_w)
+                    scale_y = float(h) / float(disp_h)
+                    cx = int(rel_x * scale_x)
+                    cy = int(rel_y * scale_y)
+
+                    cursor_pts = [
+                        (cx, cy),
+                        (cx, cy + 22),
+                        (cx + 6, cy + 17),
+                        (cx + 10, cy + 26),
+                        (cx + 14, cy + 24),
+                        (cx + 10, cy + 15),
+                        (cx + 17, cy + 15)
+                    ]
+                    draw.polygon(cursor_pts, fill=(255, 255, 255, 255), outline=(0, 0, 0, 255), width=2)
+        except Exception as ce:
+            logger.debug(f"Cursor overlay failed: {ce}")
 
         # Downscale for ultra-low latency & bandwidth savings
         if w > width_req:

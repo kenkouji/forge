@@ -44,13 +44,13 @@ class AudioEngine:
         self,
         session_id: str,
         mode: str = "sink",
-        sample_rate: int = 44100,
+        sample_rate: int = 48000,
         channels: int = 2,
         codec: str = "pcm"
     ) -> Dict[str, Any]:
         self.session_id = session_id
         self.mode = mode
-        self.sample_rate = 44100  # Hardware-native 44.1kHz
+        self.sample_rate = 48000  # Hardware-native 48kHz
         self.channels = channels
         self.codec = codec
         self.is_active = True

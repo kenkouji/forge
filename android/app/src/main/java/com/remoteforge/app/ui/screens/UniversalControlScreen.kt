@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -123,8 +124,8 @@ fun UniversalControlScreen(
                         } else {
                             val dx = obj.optDouble("dx", 0.0).toFloat()
                             val dy = obj.optDouble("dy", 0.0).toFloat()
-                            cursorNormX = (cursorNormX + (dx / 500f)).coerceIn(0.01f, 0.99f)
-                            cursorNormY = (cursorNormY + (dy / 500f)).coerceIn(0.01f, 0.99f)
+                            cursorNormX = (cursorNormX + (dx / 220f)).coerceIn(0.01f, 0.99f)
+                            cursorNormY = (cursorNormY + (dy / 220f)).coerceIn(0.01f, 0.99f)
                         }
                     } else if (type == "mouse_click") {
                         val btn = obj.optString("button", "left")
@@ -546,32 +547,33 @@ fun UniversalControlScreen(
                 Spacer(modifier = Modifier.height(30.dp))
             }
 
-            // Live Floating Pointer Overlay when Mouse is hopped to Phone
+            // Live Floating Mouse Cursor Arrow when hopped to Phone
             if (isRemoteActive) {
-                val posX = screenWidth * cursorNormX - 16.dp
-                val posY = screenHeight * cursorNormY - 16.dp
+                val posX = screenWidth * cursorNormX
+                val posY = screenHeight * cursorNormY
 
                 Box(
                     modifier = Modifier
                         .offset(x = posX.coerceAtLeast(0.dp), y = posY.coerceAtLeast(0.dp))
-                        .size(if (isClicking) 38.dp else 30.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isClicking) Color(0xFF4ECCA3).copy(alpha = 0.5f)
-                            else RoyalViolet.copy(alpha = 0.45f)
-                        )
-                        .border(
-                            2.dp,
-                            if (isClicking) Color(0xFF4ECCA3) else Color.White,
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                        .size(36.dp)
                 ) {
-                    Box(
+                    if (isClicking) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF4ECCA3).copy(alpha = 0.4f))
+                                .border(1.5.dp, Color(0xFF4ECCA3), CircleShape)
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Rounded.Navigation,
+                        contentDescription = "Mouse Pointer",
+                        tint = if (isClicking) Color(0xFF4ECCA3) else Color.White,
                         modifier = Modifier
-                            .size(if (isClicking) 14.dp else 10.dp)
-                            .clip(CircleShape)
-                            .background(if (isClicking) Color(0xFF4ECCA3) else Color.White)
+                            .size(24.dp)
+                            .rotate(-45f)
                     )
                 }
             }

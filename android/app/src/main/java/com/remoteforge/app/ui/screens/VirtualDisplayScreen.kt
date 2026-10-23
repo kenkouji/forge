@@ -1,5 +1,7 @@
 package com.remoteforge.app.ui.screens
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.widget.Toast
@@ -50,20 +52,35 @@ fun VirtualDisplayScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    // Automatically rotate and lock phone into landscape mode for the extended monitor
+    val activity = context as? Activity
+    DisposableEffect(Unit) {
+        val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        onDispose {
+            activity?.requestedOrientation = originalOrientation
+        }
+    }
+
+    // Determine phone native landscape resolution dynamically (e.g. 2340 x 1080)
+    val displayMetrics = context.resources.displayMetrics
+    val phoneLandscapeWidth = maxOf(displayMetrics.widthPixels, displayMetrics.heightPixels)
+    val phoneLandscapeHeight = minOf(displayMetrics.widthPixels, displayMetrics.heightPixels)
+
     var isSessionActive by remember { mutableStateOf(false) }
-    var selectedRes by remember { mutableStateOf("1080p") }
+    var selectedRes by remember { mutableStateOf("Phone Native") }
     var selectedFps by remember { mutableIntStateOf(60) }
     var latencyMs by remember { mutableFloatStateOf(12.5f) }
     var currentFps by remember { mutableFloatStateOf(60.0f) }
-    var showControls by remember { mutableStateOf(true) }
+    var showControls by remember { mutableStateOf(false) }
     var currentBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-    // Start virtual display on entry
+    // Start virtual display on entry with phone native landscape resolution
     LaunchedEffect(deviceId, selectedRes, selectedFps) {
         val (w, h) = when (selectedRes) {
             "720p" -> 1280 to 720
-            "Phone Native" -> 1080 to 2400
-            else -> 1920 to 1080
+            "1080p" -> 1920 to 1080
+            else -> phoneLandscapeWidth to phoneLandscapeHeight
         }
         val status = repository.startVirtualDisplay(
             deviceId = deviceId,
@@ -157,286 +174,292 @@ fun VirtualDisplayScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Virtual Display",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "$selectedRes • ${selectedFps}Hz Extended Monitor",
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 12.sp
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Rounded.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showControls = !showControls }) {
-                        Icon(
-                            imageVector = if (showControls) Icons.Rounded.Fullscreen else Icons.Rounded.Tune,
-                            contentDescription = "Toggle Controls",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0F0B18)
-                )
-            )
-        }
-    ) { padding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF07040C))
+    ) {
+        // Live Extended Screen Canvas with Gesture Detection (Edge-to-Edge Fullscreen)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(Color(0xFF0A0710))
+                .pointerInput(currentBitmap) {
+                    detectTapGestures(
+                        onTap = { offset ->
+                            coroutineScope.launch {
+                                val bmp = currentBitmap
+                                val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                    val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                    val renW = bmp.width * scale
+                                    val renH = bmp.height * scale
+                                    val offX = (size.width - renW) / 2f
+                                    val offY = (size.height - renH) / 2f
+                                    (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
+                                } else {
+                                    (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
+                                }
+                                repository.injectVirtualDisplayTouch(deviceId, "click", normX, normY)
+                            }
+                        },
+                        onDoubleTap = { offset ->
+                            coroutineScope.launch {
+                                val bmp = currentBitmap
+                                val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                    val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                    val renW = bmp.width * scale
+                                    val renH = bmp.height * scale
+                                    val offX = (size.width - renW) / 2f
+                                    val offY = (size.height - renH) / 2f
+                                    (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
+                                } else {
+                                    (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
+                                }
+                                repository.injectVirtualDisplayTouch(deviceId, "double_click", normX, normY)
+                            }
+                        },
+                        onLongPress = { offset ->
+                            coroutineScope.launch {
+                                val bmp = currentBitmap
+                                val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                    val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                    val renW = bmp.width * scale
+                                    val renH = bmp.height * scale
+                                    val offX = (size.width - renW) / 2f
+                                    val offY = (size.height - renH) / 2f
+                                    (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
+                                } else {
+                                    (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
+                                }
+                                repository.injectVirtualDisplayTouch(deviceId, "right_click", normX, normY)
+                            }
+                        }
+                    )
+                }
+                .pointerInput(currentBitmap) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            coroutineScope.launch {
+                                val bmp = currentBitmap
+                                val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                    val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                    val renW = bmp.width * scale
+                                    val renH = bmp.height * scale
+                                    val offX = (size.width - renW) / 2f
+                                    val offY = (size.height - renH) / 2f
+                                    (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
+                                } else {
+                                    (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
+                                }
+                                repository.injectVirtualDisplayTouch(deviceId, "drag_start", normX, normY)
+                            }
+                        },
+                        onDragEnd = {
+                            coroutineScope.launch {
+                                repository.injectVirtualDisplayTouch(deviceId, "drag_end", 0.5f, 0.5f)
+                            }
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            coroutineScope.launch {
+                                val bmp = currentBitmap
+                                val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
+                                    val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
+                                    val renW = bmp.width * scale
+                                    val renH = bmp.height * scale
+                                    val offX = (size.width - renW) / 2f
+                                    val offY = (size.height - renH) / 2f
+                                    (((change.position.x - offX) / renW).coerceIn(0f, 1f)) to (((change.position.y - offY) / renH).coerceIn(0f, 1f))
+                                } else {
+                                    (change.position.x / size.width).coerceIn(0f, 1f) to (change.position.y / size.height).coerceIn(0f, 1f)
+                                }
+                                repository.injectVirtualDisplayTouch(
+                                    deviceId = deviceId,
+                                    action = "move",
+                                    normX = normX,
+                                    normY = normY,
+                                    scrollDx = dragAmount.x,
+                                    scrollDy = dragAmount.y
+                                )
+                            }
+                        }
+                    )
+                },
+            contentAlignment = Alignment.Center
         ) {
-            // Live Extended Screen Canvas with Gesture Detection
+            if (currentBitmap != null) {
+                Image(
+                    bitmap = currentBitmap!!.asImageBitmap(),
+                    contentDescription = "Virtual Extended Display",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = RoyalViolet,
+                        modifier = Modifier.size(36.dp),
+                        strokeWidth = 3.dp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Activating Extended Monitor (${phoneLandscapeWidth}x${phoneLandscapeHeight})...",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+
+        // Floating Control Pill in Top Bar for Landscape Navigation
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(currentBitmap) {
-                        detectTapGestures(
-                            onTap = { offset ->
-                                coroutineScope.launch {
-                                    val bmp = currentBitmap
-                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
-                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
-                                        val renW = bmp.width * scale
-                                        val renH = bmp.height * scale
-                                        val offX = (size.width - renW) / 2f
-                                        val offY = (size.height - renH) / 2f
-                                        (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
-                                    } else {
-                                        (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
-                                    }
-                                    repository.injectVirtualDisplayTouch(deviceId, "click", normX, normY)
-                                }
-                            },
-                            onDoubleTap = { offset ->
-                                coroutineScope.launch {
-                                    val bmp = currentBitmap
-                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
-                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
-                                        val renW = bmp.width * scale
-                                        val renH = bmp.height * scale
-                                        val offX = (size.width - renW) / 2f
-                                        val offY = (size.height - renH) / 2f
-                                        (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
-                                    } else {
-                                        (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
-                                    }
-                                    repository.injectVirtualDisplayTouch(deviceId, "double_click", normX, normY)
-                                }
-                            },
-                            onLongPress = { offset ->
-                                coroutineScope.launch {
-                                    val bmp = currentBitmap
-                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
-                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
-                                        val renW = bmp.width * scale
-                                        val renH = bmp.height * scale
-                                        val offX = (size.width - renW) / 2f
-                                        val offY = (size.height - renH) / 2f
-                                        (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
-                                    } else {
-                                        (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
-                                    }
-                                    repository.injectVirtualDisplayTouch(deviceId, "right_click", normX, normY)
-                                }
-                            }
-                        )
-                    }
-                    .pointerInput(currentBitmap) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                coroutineScope.launch {
-                                    val bmp = currentBitmap
-                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
-                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
-                                        val renW = bmp.width * scale
-                                        val renH = bmp.height * scale
-                                        val offX = (size.width - renW) / 2f
-                                        val offY = (size.height - renH) / 2f
-                                        (((offset.x - offX) / renW).coerceIn(0f, 1f)) to (((offset.y - offY) / renH).coerceIn(0f, 1f))
-                                    } else {
-                                        (offset.x / size.width).coerceIn(0f, 1f) to (offset.y / size.height).coerceIn(0f, 1f)
-                                    }
-                                    repository.injectVirtualDisplayTouch(deviceId, "drag_start", normX, normY)
-                                }
-                            },
-                            onDragEnd = {
-                                coroutineScope.launch {
-                                    repository.injectVirtualDisplayTouch(deviceId, "drag_end", 0.5f, 0.5f)
-                                }
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                coroutineScope.launch {
-                                    val bmp = currentBitmap
-                                    val (normX, normY) = if (bmp != null && size.width > 0 && size.height > 0) {
-                                        val scale = minOf(size.width.toFloat() / bmp.width, size.height.toFloat() / bmp.height)
-                                        val renW = bmp.width * scale
-                                        val renH = bmp.height * scale
-                                        val offX = (size.width - renW) / 2f
-                                        val offY = (size.height - renH) / 2f
-                                        (((change.position.x - offX) / renW).coerceIn(0f, 1f)) to (((change.position.y - offY) / renH).coerceIn(0f, 1f))
-                                    } else {
-                                        (change.position.x / size.width).coerceIn(0f, 1f) to (change.position.y / size.height).coerceIn(0f, 1f)
-                                    }
-                                    repository.injectVirtualDisplayTouch(
-                                        deviceId = deviceId,
-                                        action = "move",
-                                        normX = normX,
-                                        normY = normY,
-                                        scrollDx = dragAmount.x,
-                                        scrollDy = dragAmount.y
-                                    )
-                                }
-                            }
-                        )
-                    },
-                contentAlignment = Alignment.Center
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xCC130D22))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
+                    .clickable { onNavigateBack() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                if (currentBitmap != null) {
-                    Image(
-                        bitmap = currentBitmap!!.asImageBitmap(),
-                        contentDescription = "Virtual Display Stream",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
                     )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = RoyalViolet, modifier = Modifier.size(36.dp))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("Connecting to Virtual Display Stream...", color = TextSecondaryDark, fontSize = 12.sp)
-                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Exit Display", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
-            // Floating Liquid Glass HUD
-            AnimatedVisibility(
-                visible = showControls,
-                enter = fadeIn() + slideInVertically { it / 2 },
-                exit = fadeOut() + slideOutVertically { it / 2 },
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xCC130D22))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
+                    .clickable { showControls = !showControls }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (showControls) Icons.Rounded.Fullscreen else Icons.Rounded.Tune,
+                        contentDescription = "Tune",
+                        tint = RoyalViolet,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${selectedRes} • ${selectedFps}Hz",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // Collapsible Controls HUD Overlay
+        AnimatedVisibility(
+            visible = showControls,
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(Color(0xFF4ECCA3), CircleShape)
-                                )
+                        Text(
+                            text = "EXTENDED MONITOR CONFIGURATION",
+                            color = LavenderMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = "${phoneLandscapeWidth}x${phoneLandscapeHeight} Native Landscape",
+                            color = Color(0xFF4ECCA3),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Resolution Switcher Chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("Phone Native", "1080p", "720p").forEach { res ->
+                            val isSelected = selectedRes == res
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) RoyalViolet.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.05f))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) RoyalViolet else Color.White.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { selectedRes = res }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
-                                    text = "SECONDARY DISPLAY LIVE",
-                                    color = TextPrimaryDark,
+                                    text = if (res == "Phone Native") "Native (${phoneLandscapeWidth}x${phoneLandscapeHeight})" else res,
+                                    color = if (isSelected) TextPrimaryDark else TextMutedDark,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+
+                    // Frame Rate Chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(30 to "30Hz Save", 60 to "60Hz Smooth", 120 to "120Hz Pro").forEach { (fpsVal, label) ->
+                            val isSelected = selectedFps == fpsVal
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) RoyalViolet.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.05f))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) RoyalViolet else Color.White.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { selectedFps = fpsVal }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) TextPrimaryDark else TextMutedDark,
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(
-                                    text = "${currentFps.toInt()} FPS",
-                                    color = LavenderAccent,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "${latencyMs.toInt()}ms Latency",
-                                    color = TextMutedDark,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-
-                        // Resolution Switcher Chips
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf("1080p", "720p", "Phone Native").forEach { res ->
-                                val isSelected = selectedRes == res
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) RoyalViolet.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.05f))
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (isSelected) RoyalViolet else Color.White.copy(alpha = 0.1f),
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable { selectedRes = res }
-                                        .padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = res,
-                                        color = if (isSelected) TextPrimaryDark else TextMutedDark,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                }
-                            }
-                        }
-
-                        // Frame Rate Chips
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(30 to "30Hz Save", 60 to "60Hz Smooth", 120 to "120Hz Pro").forEach { (fpsVal, label) ->
-                                val isSelected = selectedFps == fpsVal
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) RoyalViolet.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.05f))
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (isSelected) RoyalViolet else Color.White.copy(alpha = 0.1f),
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable { selectedFps = fpsVal }
-                                        .padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = label,
-                                        color = if (isSelected) TextPrimaryDark else TextMutedDark,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                }
                             }
                         }
                     }

@@ -9,43 +9,76 @@ class AudioCaptureHelper: NSObject, SCStreamOutput {
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
         guard outputType == .audio else { return }
 
+        let numSamples = CMSampleBufferGetNumSamples(sampleBuffer)
+        guard numSamples > 0 else { return }
+
         guard let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer),
               let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDesc)?.pointee else {
             return
         }
 
-        guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return }
-        var length: Int = 0
-        var dataPointer: UnsafeMutablePointer<Int8>?
-        if CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &length, dataPointerOut: &dataPointer) == noErr,
-           let ptr = dataPointer, length > 0 {
+        var neededSize: Int = 0
+        let statusNeeded = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+            sampleBuffer,
+            bufferListSizeNeededOut: &neededSize,
+            bufferListOut: nil,
+            bufferListSize: 0,
+            blockBufferAllocator: nil,
+            blockBufferMemoryAllocator: nil,
+            flags: 0,
+            blockBufferOut: nil
+        )
 
-            let isFloat = (asbd.mFormatFlags & kAudioFormatFlagIsFloat) != 0
+        guard neededSize > 0 else { return }
 
-            if !isFloat && asbd.mBitsPerChannel == 16 {
-                let data = Data(bytes: ptr, count: length)
-                outHandle.write(data)
-            } else if isFloat {
-                // Convert 32-bit Float PCM to 16-bit Int PCM
-                let floatCount = length / 4
-                let floatPtr = ptr.withMemoryRebound(to: Float.self, capacity: floatCount) { $0 }
-                var int16Data = [Int16](repeating: 0, count: floatCount)
-                for i in 0..<floatCount {
-                    let f = max(-1.0, min(1.0, floatPtr[i]))
-                    int16Data[i] = Int16(f * 32767.0)
-                }
-                int16Data.withUnsafeBytes { rawBytes in
-                    outHandle.write(Data(rawBytes))
-                }
-            }
+        let rawMemory = UnsafeMutableRawPointer.allocate(byteCount: neededSize, alignment: MemoryLayout<AudioBufferList>.alignment)
+        let bufferListPtr = rawMemory.bindMemory(to: AudioBufferList.self, capacity: 1)
+        defer { rawMemory.deallocate() }
+
+        var blockBuffer: CMBlockBuffer?
+        let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+            sampleBuffer,
+            bufferListSizeNeededOut: nil,
+            bufferListOut: bufferListPtr,
+            bufferListSize: neededSize,
+            blockBufferAllocator: nil,
+            blockBufferMemoryAllocator: nil,
+            flags: 0,
+            blockBufferOut: &blockBuffer
+        )
+
+        guard status == noErr else { return }
+
+        let ablPtr = UnsafeMutableAudioBufferListPointer(bufferListPtr)
+        guard ablPtr.count >= 2,
+              let leftData = ablPtr[0].mData,
+              let rightData = ablPtr[1].mData else {
+            return
+        }
+
+        let leftFloats = leftData.assumingMemoryBound(to: Float.self)
+        let rightFloats = rightData.assumingMemoryBound(to: Float.self)
+
+        var pcmBytes = [Int16](repeating: 0, count: numSamples * 2)
+        for i in 0..<numSamples {
+            let l = max(-1.0, min(1.0, leftFloats[i]))
+            let r = max(-1.0, min(1.0, rightFloats[i]))
+            pcmBytes[i * 2] = Int16(l * 32767.0)
+            pcmBytes[i * 2 + 1] = Int16(r * 32767.0)
+        }
+
+        pcmBytes.withUnsafeBytes { rawPtr in
+            outHandle.write(Data(rawPtr))
         }
     }
 }
 
 let args = CommandLine.arguments
-let sampleRate: Int = args.count > 1 ? (Int(args[1]) ?? 44100) : 44100
+let sampleRate: Int = args.count > 1 ? (Int(args[1]) ?? 48000) : 48000
 let channels: Int = args.count > 2 ? (Int(args[2]) ?? 2) : 2
 
+// Global retain to prevent ARC deallocation
+var globalStream: SCStream? = nil
 let handler = AudioCaptureHelper()
 
 Task {
@@ -59,10 +92,13 @@ Task {
         let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
         let config = SCStreamConfiguration()
         config.capturesAudio = true
+        config.width = 2
+        config.height = 2
         config.sampleRate = sampleRate
         config.channelCount = channels
 
         let stream = SCStream(filter: filter, configuration: config, delegate: nil)
+        globalStream = stream
         try stream.addStreamOutput(handler, type: .audio, sampleHandlerQueue: DispatchQueue.global(qos: .userInteractive))
         try await stream.startCapture()
 

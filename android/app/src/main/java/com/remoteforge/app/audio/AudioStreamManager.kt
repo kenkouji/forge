@@ -37,8 +37,8 @@ class AudioStreamManager(private val context: Context) {
     private val isTrackPlaying = AtomicBoolean(false)
     private val preBufferCount = AtomicInteger(0)
 
-    // Match Mac hardware sample rate 44.1kHz stereo
-    private val sampleRate = 44100
+    // Hardware match 48kHz stereo
+    private val sampleRate = 48000
     private val channelConfigOut = AudioFormat.CHANNEL_OUT_STEREO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
 
@@ -120,9 +120,9 @@ class AudioStreamManager(private val context: Context) {
                 // Write to AudioTrack buffer
                 track.write(rawData, 0, rawData.size, AudioTrack.WRITE_BLOCKING)
 
-                // Pre-buffer 3 chunks (~60ms) before starting playback to avoid buffer underrun crackles
+                // Pre-buffer 2 chunks (~40ms) before starting playback for zero latency
                 val count = preBufferCount.incrementAndGet()
-                if (count >= 3 && !isTrackPlaying.get()) {
+                if (count >= 2 && !isTrackPlaying.get()) {
                     try {
                         track.play()
                         isTrackPlaying.set(true)
