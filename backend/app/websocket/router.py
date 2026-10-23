@@ -123,7 +123,7 @@ async def agent_websocket_endpoint(
                 except Exception as ce:
                     logger.warning(f"Error processing clipboard_update: {ce}")
 
-            elif msg_type in ("edge_handoff", "pointer_move"):
+            elif msg_type in ("edge_handoff", "pointer_move", "mouse_click", "mouse_scroll", "keyboard_key"):
                 dev = data.get("device_id") or device_id
                 raw_json = json.dumps(data)
                 if dev in EDGE_CONTROL_ROOMS:

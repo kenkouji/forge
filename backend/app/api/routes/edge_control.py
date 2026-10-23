@@ -142,7 +142,7 @@ async def get_edge_control_status(
     if not state:
         return EdgeControlStatusResponse(
             device_id=device_id,
-            is_enabled=False,
+            is_enabled=True,
             configured_edge="RIGHT",
             is_remote_active=False,
             cursor_x=0.5,

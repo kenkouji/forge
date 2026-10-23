@@ -3,6 +3,9 @@ package com.remoteforge.app.ui.screens
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.widget.Toast
+import java.io.InputStream
+import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
 import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -97,39 +100,43 @@ fun VirtualDisplayScreen(
 
                     response = okHttpClient.newCall(request).execute()
                     if (response.isSuccessful && response.body != null) {
-                        val inputStream = response.body!!.byteStream()
-                        val buffer = ByteArray(1024 * 512)
-                        var readSoFar = 0
+                        val inputStream: InputStream = BufferedInputStream(response.body!!.byteStream(), 256 * 1024)
+                        val buffer = ByteArray(1024 * 1024)
 
                         while (isActive && isSessionActive) {
-                            val bytesRead = inputStream.read(buffer, readSoFar, buffer.size - readSoFar)
-                            if (bytesRead <= 0) break
-                            readSoFar += bytesRead
-
-                            // Scan for JPEG boundaries (0xFFD8 to 0xFFD9)
-                            var startIdx = -1
-                            var endIdx = -1
-
-                            for (i in 0 until readSoFar - 1) {
-                                if (buffer[i] == 0xFF.toByte() && buffer[i + 1] == 0xD8.toByte() && startIdx == -1) {
-                                    startIdx = i
-                                } else if (buffer[i] == 0xFF.toByte() && buffer[i + 1] == 0xD9.toByte() && startIdx != -1) {
-                                    endIdx = i + 2
-                                    break
+                            var contentLength = -1
+                            while (isActive && isSessionActive) {
+                                val line = readVirtualDisplayHeaderLine(inputStream) ?: break
+                                if (line.isEmpty() && contentLength > 0) {
+                                    break // Empty line precedes the JPEG payload
+                                }
+                                val lower = line.lowercase()
+                                if (lower.contains("content-length:")) {
+                                    contentLength = line.substringAfter(":").trim().toIntOrNull() ?: -1
                                 }
                             }
 
-                            if (startIdx != -1 && endIdx != -1) {
-                                val contentLength = endIdx - startIdx
+                            if (contentLength <= 0 || contentLength > buffer.size) {
+                                continue
+                            }
+
+                            var bytesRead = 0
+                            while (bytesRead < contentLength) {
+                                val r = inputStream.read(buffer, bytesRead, contentLength - bytesRead)
+                                if (r == -1) break
+                                bytesRead += r
+                            }
+
+                            if (bytesRead == contentLength) {
                                 val decodeOptions = BitmapFactory.Options().apply {
                                     inPreferredConfig = Bitmap.Config.RGB_565
                                 }
-                                val bmp = BitmapFactory.decodeByteArray(buffer, startIdx, contentLength, decodeOptions)
+                                val bmp = BitmapFactory.decodeByteArray(buffer, 0, contentLength, decodeOptions)
                                 if (bmp != null) {
-                                    currentBitmap = bmp
+                                    withContext(Dispatchers.Main) {
+                                        currentBitmap = bmp
+                                    }
                                 }
-                                System.arraycopy(buffer, endIdx, buffer, 0, readSoFar - endIdx)
-                                readSoFar -= endIdx
                             }
                         }
                     }
@@ -436,5 +443,22 @@ fun VirtualDisplayScreen(
                 }
             }
         }
+    }
+}
+
+private fun readVirtualDisplayHeaderLine(inputStream: InputStream): String? {
+    val baos = ByteArrayOutputStream()
+    var prev = -1
+    while (true) {
+        val b = inputStream.read()
+        if (b == -1) {
+            return if (baos.size() == 0) null else baos.toString("UTF-8")
+        }
+        if (prev == '\r'.code && b == '\n'.code) {
+            val arr = baos.toByteArray()
+            return if (arr.isNotEmpty()) String(arr, 0, arr.size - 1, Charsets.UTF_8) else ""
+        }
+        baos.write(b)
+        prev = b
     }
 }

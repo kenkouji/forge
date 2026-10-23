@@ -60,3 +60,5 @@ local.properties
 /*.log
 benchmark_baseline.json
 phone_benchmark_*.json
+agent/remote_forge_agent/bin/virtual_display_helper
+agent/remote_forge_agent/bin/audio_capture_helper

@@ -171,6 +171,31 @@ class InputControlService:
             except Exception:
                 pass
 
+    def get_screen_dimensions(self) -> Dict[str, float]:
+        self._update_display_bounds()
+        return {"width": self.display_width, "height": self.display_height}
+
+    def get_mouse_position(self) -> Dict[str, float]:
+        if self.is_macos and self._app_services:
+            try:
+                ev = self._app_services.CGEventCreate(None)
+                if ev:
+                    pt = self._app_services.CGEventGetLocation(ev)
+                    self._app_services.CFRelease(ev)
+                    return {"x": float(pt.x), "y": float(pt.y)}
+            except Exception:
+                pass
+        elif self.is_windows and self._user32:
+            try:
+                class POINT(ctypes.Structure):
+                    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+                pt = POINT()
+                if self._user32.GetCursorPos(ctypes.byref(pt)):
+                    return {"x": float(pt.x), "y": float(pt.y)}
+            except Exception:
+                pass
+        return {"x": 0.0, "y": 0.0}
+
     def has_accessibility_permission(self) -> bool:
         if self.is_windows:
             return True

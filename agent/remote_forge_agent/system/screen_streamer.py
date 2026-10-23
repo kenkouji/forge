@@ -83,6 +83,7 @@ class ScreenStreamService:
         self.total_frames_sent: int = 0
         self.display_width: int = 1280
         self.display_height: int = 800
+        self.target_display_id: Optional[int] = None
 
     def capture_frame(
         self,
@@ -101,19 +102,18 @@ class ScreenStreamService:
         w = 0
         h = 0
 
-        # Method 1: High-Speed Native macOS CGWindowListCreateImage with 1x Nominal Resolution
+        # Method 1: High-Speed Native macOS CoreGraphics Capture
         if _cg is not None and _cf is not None:
             try:
-                main_id = _cg.CGMainDisplayID()
-                bounds = _cg.CGDisplayBounds(main_id)
+                target_id = self.target_display_id if self.target_display_id else _cg.CGMainDisplayID()
+                bounds = _cg.CGDisplayBounds(target_id)
                 self.display_width = int(bounds.size.width)
                 self.display_height = int(bounds.size.height)
 
-                # 1: kCGWindowListOptionOnScreenOnly, 0: kCGNullWindowID, 16: kCGWindowImageNominalResolution
-                img_ref = _cg.CGWindowListCreateImage(bounds, 1, 0, 16)
+                # Capture target display (main or secondary virtual display)
+                img_ref = _cg.CGDisplayCreateImage(target_id)
                 if not img_ref:
-                    # Fallback to CGDisplayCreateImage
-                    img_ref = _cg.CGDisplayCreateImage(main_id)
+                    img_ref = _cg.CGWindowListCreateImage(bounds, 1, 0, 16)
 
                 if img_ref:
                     w = int(_cg.CGImageGetWidth(img_ref))

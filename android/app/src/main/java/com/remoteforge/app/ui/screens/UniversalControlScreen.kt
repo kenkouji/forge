@@ -6,10 +6,12 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -19,8 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,9 +45,10 @@ fun UniversalControlScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    // 24/7 Universal Control active by default on RIGHT edge
     var configuredEdge by remember { mutableStateOf("RIGHT") }
     var sensitivity by remember { mutableFloatStateOf(1.0f) }
-    var dwellDelayMs by remember { mutableIntStateOf(80) }
+    var dwellDelayMs by remember { mutableIntStateOf(40) }
     var enableKeyboard by remember { mutableStateOf(true) }
     var enableClipboard by remember { mutableStateOf(true) }
     var isEnabled by remember { mutableStateOf(true) }
@@ -53,15 +56,20 @@ fun UniversalControlScreen(
 
     var cursorNormX by remember { mutableFloatStateOf(0.5f) }
     var cursorNormY by remember { mutableFloatStateOf(0.5f) }
+    var isClicking by remember { mutableStateOf(false) }
+    var lastActionNotice by remember { mutableStateOf("Ready: Move mouse past laptop right edge") }
+    var typedBuffer by remember { mutableStateOf("Type anywhere on your laptop when mouse is on phone...") }
+
     var edgeWebSocket by remember { mutableStateOf<WebSocket?>(null) }
+    val mainScrollState = rememberScrollState()
 
     // Edge glow infinite animation
     val infiniteTransition = rememberInfiniteTransition(label = "EdgeGlow")
     val glowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
-        targetValue = 0.85f,
+        targetValue = 0.9f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = FastOutSlowInEasing),
+            animation = tween(2000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "GlowAlpha"
@@ -77,7 +85,7 @@ fun UniversalControlScreen(
         }
     }
 
-    // Connect to ultra-low latency WebSocket for mouse hopping and pointer stream
+    // Connect to ultra-low latency WebSocket for 24/7 mouse hopping, clicks, scroll, and keyboard stream
     DisposableEffect(deviceId) {
         val serverUrl = repository.networkConfig.serverUrl
             .replace("http://", "ws://")
@@ -97,10 +105,13 @@ fun UniversalControlScreen(
                     if (type == "edge_handoff") {
                         if (event == "ENTER_REMOTE") {
                             isRemoteActive = true
-                            cursorNormX = obj.optDouble("norm_x", 0.5).toFloat()
+                            cursorNormX = obj.optDouble("norm_x", 0.05).toFloat()
                             cursorNormY = obj.optDouble("norm_y", 0.5).toFloat()
+                            lastActionNotice = "Mouse Hopped to Phone!"
                         } else if (event == "EXIT_REMOTE") {
                             isRemoteActive = false
+                            isClicking = false
+                            lastActionNotice = "Mouse Returned to Laptop"
                         }
                     } else if (type == "pointer_move") {
                         isRemoteActive = true
@@ -112,8 +123,41 @@ fun UniversalControlScreen(
                         } else {
                             val dx = obj.optDouble("dx", 0.0).toFloat()
                             val dy = obj.optDouble("dy", 0.0).toFloat()
-                            cursorNormX = (cursorNormX + (dx / 400f)).coerceIn(0f, 1f)
-                            cursorNormY = (cursorNormY + (dy / 400f)).coerceIn(0f, 1f)
+                            cursorNormX = (cursorNormX + (dx / 500f)).coerceIn(0.01f, 0.99f)
+                            cursorNormY = (cursorNormY + (dy / 500f)).coerceIn(0.01f, 0.99f)
+                        }
+                    } else if (type == "mouse_click") {
+                        val btn = obj.optString("button", "left")
+                        val action = obj.optString("action", "click")
+                        isClicking = action == "down"
+                        lastActionNotice = "${btn.replaceFirstChar { it.uppercase() }} Click"
+                    } else if (type == "mouse_scroll") {
+                        val sdy = obj.optDouble("dy", 0.0).toFloat()
+                        lastActionNotice = "Mouse Scroll: ${if (sdy > 0) "Up" else "Down"}"
+                        coroutineScope.launch {
+                            mainScrollState.scrollBy((-sdy * 120f))
+                        }
+                    } else if (type == "keyboard_key") {
+                        val key = obj.optString("key", "")
+                        val action = obj.optString("action", "press")
+                        if (action == "press") {
+                            lastActionNotice = "Keystroke: $key"
+                            if (key == "Key.backspace" || key.equals("backspace", ignoreCase = true)) {
+                                if (typedBuffer.isNotEmpty()) {
+                                    typedBuffer = typedBuffer.dropLast(1)
+                                }
+                            } else if (key == "Key.space" || key.equals("space", ignoreCase = true)) {
+                                typedBuffer += " "
+                            } else if (key == "Key.enter" || key.equals("enter", ignoreCase = true)) {
+                                typedBuffer += "\n"
+                            } else if (key == "Key.tab" || key.equals("tab", ignoreCase = true)) {
+                                typedBuffer += "    "
+                            } else if (key.length == 1) {
+                                if (typedBuffer.startsWith("Type anywhere")) {
+                                    typedBuffer = ""
+                                }
+                                typedBuffer += key
+                            }
                         }
                     }
                 } catch (ignored: Exception) {}
@@ -136,7 +180,7 @@ fun UniversalControlScreen(
             } catch (ignored: Exception) {}
             repository.sendEdgeHandoff(deviceId, "EXIT_REMOTE", 0.5f, 0.5f)
             isRemoteActive = false
-            Toast.makeText(context, "Cursor Snapped Back to PC", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Cursor Snapped Back to Laptop", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -152,7 +196,7 @@ fun UniversalControlScreen(
             )
             if (res != null) {
                 isEnabled = res.isEnabled
-                Toast.makeText(context, "Universal Control Active on $configuredEdge Edge", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Universal Control on $configuredEdge Edge", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -162,14 +206,31 @@ fun UniversalControlScreen(
             TopAppBar(
                 title = {
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Universal Control",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0xFF4ECCA3).copy(alpha = 0.2f))
+                                    .border(1.dp, Color(0xFF4ECCA3).copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "24/7 ACTIVE",
+                                    color = Color(0xFF4ECCA3),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                         Text(
-                            text = "Universal Control",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Cross-Screen Mouse & Keyboard Hopping",
+                            text = "Seamless Mouse, Scroll & Keyboard Hopping",
                             color = Color.White.copy(alpha = 0.5f),
                             fontSize = 12.sp
                         )
@@ -199,7 +260,7 @@ fun UniversalControlScreen(
             val screenWidth = maxWidth
             val screenHeight = maxHeight
 
-            // Visual Edge Barrier Glow along the active edge
+            // Edge Barrier Glow indicating active hop border
             val edgeBrush = remember(configuredEdge, glowAlpha) {
                 when (configuredEdge) {
                     "RIGHT" -> Brush.horizontalGradient(
@@ -222,10 +283,10 @@ fun UniversalControlScreen(
                     .fillMaxSize()
                     .then(
                         when (configuredEdge) {
-                            "RIGHT" -> Modifier.align(Alignment.CenterEnd).width(24.dp).fillMaxHeight()
-                            "LEFT" -> Modifier.align(Alignment.CenterStart).width(24.dp).fillMaxHeight()
-                            "TOP" -> Modifier.align(Alignment.TopCenter).height(24.dp).fillMaxWidth()
-                            else -> Modifier.align(Alignment.BottomCenter).height(24.dp).fillMaxWidth()
+                            "RIGHT" -> Modifier.align(Alignment.CenterEnd).width(20.dp).fillMaxHeight()
+                            "LEFT" -> Modifier.align(Alignment.CenterStart).width(20.dp).fillMaxHeight()
+                            "TOP" -> Modifier.align(Alignment.TopCenter).height(20.dp).fillMaxWidth()
+                            else -> Modifier.align(Alignment.BottomCenter).height(20.dp).fillMaxWidth()
                         }
                     )
                     .background(edgeBrush)
@@ -234,6 +295,7 @@ fun UniversalControlScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(mainScrollState)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -244,26 +306,38 @@ fun UniversalControlScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = "SPATIAL SCREEN ARRANGEMENT",
-                            color = LavenderMuted,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "SPATIAL SCREEN ARRANGEMENT",
+                                color = LavenderMuted,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = lastActionNotice,
+                                color = if (isRemoteActive) Color(0xFF4ECCA3) else TextMutedDark,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
 
                         // Visual Monitor Box & Phone Box Diagram
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(130.dp),
+                                .height(120.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // PC Monitor Box
+                            // Laptop Monitor Box
                             Box(
                                 modifier = Modifier
-                                    .size(130.dp, 85.dp)
+                                    .size(130.dp, 80.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(Color(0xFF1E1430))
                                     .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(8.dp)),
@@ -272,7 +346,7 @@ fun UniversalControlScreen(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(Icons.Rounded.Computer, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(24.dp))
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text("Primary Mac/PC", color = TextPrimaryDark, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("Laptop / PC", color = TextPrimaryDark, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
 
@@ -285,7 +359,7 @@ fun UniversalControlScreen(
                                     else -> Icons.Rounded.ArrowDownward
                                 },
                                 contentDescription = null,
-                                tint = RoyalViolet.copy(alpha = glowAlpha),
+                                tint = if (isRemoteActive) Color(0xFF4ECCA3) else RoyalViolet.copy(alpha = glowAlpha),
                                 modifier = Modifier
                                     .padding(horizontal = 12.dp)
                                     .size(28.dp)
@@ -297,7 +371,11 @@ fun UniversalControlScreen(
                                     .size(55.dp, 95.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(Color(0xFF2B1A45))
-                                    .border(2.dp, if (isRemoteActive) Color(0xFF4ECCA3) else RoyalViolet, RoundedCornerShape(10.dp)),
+                                    .border(
+                                        2.dp,
+                                        if (isRemoteActive) Color(0xFF4ECCA3) else RoyalViolet,
+                                        RoundedCornerShape(10.dp)
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -309,21 +387,72 @@ fun UniversalControlScreen(
                         }
 
                         Text(
-                            text = if (isRemoteActive) "Mouse & Keyboard Active on Phone!" else "Move cursor past the $configuredEdge edge of your PC monitor to hop here.",
+                            text = if (isRemoteActive)
+                                "Mouse & Keyboard Active on Phone! Click, scroll wheel, and type freely."
+                            else
+                                "Move mouse past the $configuredEdge edge of your laptop screen to hop directly onto your phone.",
                             color = if (isRemoteActive) Color(0xFF4ECCA3) else TextMutedDark,
                             fontSize = 12.sp
                         )
                     }
                 }
 
-                // Edge Position Selector
+                // Interactive Phone Surface / Test Pad
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "INTERACTIVE SURFACE & KEYBOARD RECEIVER",
+                                color = LavenderMuted,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                            if (typedBuffer.isNotEmpty()) {
+                                Text(
+                                    text = "Clear",
+                                    color = LavenderAccent,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.clickable { typedBuffer = "" }
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 100.dp, max = 180.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF140D22))
+                                .border(1.dp, if (isRemoteActive) RoyalViolet else Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = typedBuffer,
+                                color = if (typedBuffer.startsWith("Type anywhere")) TextMutedDark else TextPrimaryDark,
+                                fontSize = 13.sp,
+                                fontFamily = FontFamily.Monospace,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                }
+
+                // Edge Position Placement Selector
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "DEVICE PLACEMENT",
+                            text = "PHONE PLACEMENT RELATIVE TO LAPTOP",
                             color = LavenderMuted,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -378,7 +507,7 @@ fun UniversalControlScreen(
                         ) {
                             Column {
                                 Text("Keyboard Input Forwarding", color = TextPrimaryDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Typing on PC routes to Phone when active", color = TextMutedDark, fontSize = 11.sp)
+                                Text("Forward typing to phone when mouse is hopped", color = TextMutedDark, fontSize = 11.sp)
                             }
                             Switch(
                                 checked = enableKeyboard,
@@ -403,9 +532,6 @@ fun UniversalControlScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Action Buttons
                 if (isRemoteActive) {
                     Button(
                         onClick = { snapBackToPc() },
@@ -413,9 +539,11 @@ fun UniversalControlScreen(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Snap Cursor Back to PC", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Snap Cursor Back to Laptop", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(30.dp))
             }
 
             // Live Floating Pointer Overlay when Mouse is hopped to Phone
@@ -426,17 +554,24 @@ fun UniversalControlScreen(
                 Box(
                     modifier = Modifier
                         .offset(x = posX.coerceAtLeast(0.dp), y = posY.coerceAtLeast(0.dp))
-                        .size(32.dp)
+                        .size(if (isClicking) 38.dp else 30.dp)
                         .clip(CircleShape)
-                        .background(RoyalViolet.copy(alpha = 0.4f))
-                        .border(2.dp, Color.White, CircleShape),
+                        .background(
+                            if (isClicking) Color(0xFF4ECCA3).copy(alpha = 0.5f)
+                            else RoyalViolet.copy(alpha = 0.45f)
+                        )
+                        .border(
+                            2.dp,
+                            if (isClicking) Color(0xFF4ECCA3) else Color.White,
+                            CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(if (isClicking) 14.dp else 10.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
+                            .background(if (isClicking) Color(0xFF4ECCA3) else Color.White)
                     )
                 }
             }

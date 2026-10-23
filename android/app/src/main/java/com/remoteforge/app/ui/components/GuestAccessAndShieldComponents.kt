@@ -73,6 +73,11 @@ fun PrivacyShieldCard(
     val isTransfersStopped = shieldStatus?.isTransfersStopped == true
     val activeGuests = shieldStatus?.activeGuestsCount ?: 0
 
+    // Only show Privacy Shield when a guest is actively viewing or lockdown is engaged
+    if (activeGuests <= 0 && !isLockdown) {
+        return
+    }
+
     GlassCard(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(16.dp)

@@ -3,9 +3,7 @@ package com.remoteforge.app.audio
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
-import android.media.AudioRecord
 import android.media.AudioTrack
-import android.media.MediaRecorder
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import okhttp3.*
 import okio.ByteString
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class AudioStreamManager(private val context: Context) {
 
@@ -25,7 +24,7 @@ class AudioStreamManager(private val context: Context) {
     private val _isMicActive = MutableStateFlow(false)
     val isMicActive: StateFlow<Boolean> = _isMicActive
 
-    private val _latencyMs = MutableStateFlow(24.0f)
+    private val _latencyMs = MutableStateFlow(18.0f)
     val latencyMs: StateFlow<Float> = _latencyMs
 
     private val _volume = MutableStateFlow(1.0f)
@@ -35,12 +34,12 @@ class AudioStreamManager(private val context: Context) {
     val amplitude: StateFlow<Float> = _amplitude
 
     private var audioTrack: AudioTrack? = null
-    private var audioRecord: AudioRecord? = null
-    private val isRecording = AtomicBoolean(false)
+    private val isTrackPlaying = AtomicBoolean(false)
+    private val preBufferCount = AtomicInteger(0)
 
-    private val sampleRate = 48000
+    // Match Mac hardware sample rate 44.1kHz stereo
+    private val sampleRate = 44100
     private val channelConfigOut = AudioFormat.CHANNEL_OUT_STEREO
-    private val channelConfigIn = AudioFormat.CHANNEL_IN_MONO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
 
     fun startPlayback(wsUrl: String) {
@@ -48,6 +47,8 @@ class AudioStreamManager(private val context: Context) {
 
         try {
             val minBufSize = AudioTrack.getMinBufferSize(sampleRate, channelConfigOut, audioFormat)
+            val bufferCapacity = maxOf(minBufSize * 4, 32 * 1024)
+
             audioTrack = AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
@@ -62,12 +63,14 @@ class AudioStreamManager(private val context: Context) {
                         .setChannelMask(channelConfigOut)
                         .build()
                 )
-                .setBufferSizeInBytes(minBufSize * 2)
+                .setBufferSizeInBytes(bufferCapacity)
                 .setTransferMode(AudioTrack.MODE_STREAM)
+                .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
                 .build()
 
             audioTrack?.setVolume(_volume.value)
-            audioTrack?.play()
+            isTrackPlaying.set(false)
+            preBufferCount.set(0)
             _isSinkActive.value = true
 
             connectWebSocket(wsUrl)
@@ -79,8 +82,12 @@ class AudioStreamManager(private val context: Context) {
     fun stopPlayback() {
         _isSinkActive.value = false
         _amplitude.value = 0.0f
+        isTrackPlaying.set(false)
+        preBufferCount.set(0)
+
         try {
-            audioTrack?.stop()
+            audioTrack?.pause()
+            audioTrack?.flush()
             audioTrack?.release()
             audioTrack = null
         } catch (e: Exception) {
@@ -104,23 +111,38 @@ class AudioStreamManager(private val context: Context) {
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                if (_isSinkActive.value && audioTrack != null) {
-                    val rawData = bytes.toByteArray()
-                    audioTrack?.write(rawData, 0, rawData.size)
+                val track = audioTrack ?: return
+                if (!_isSinkActive.value) return
 
-                    // Compute RMS amplitude for visualizer
-                    var sumSquares = 0.0
-                    val sampleCount = rawData.size / 2
-                    for (i in 0 until rawData.size - 1 step 2) {
-                        val sample = (rawData[i].toInt() and 0xFF) or (rawData[i + 1].toInt() shl 8)
-                        val shortVal = sample.toShort()
-                        sumSquares += shortVal * shortVal
+                val rawData = bytes.toByteArray()
+                if (rawData.isEmpty()) return
+
+                // Write to AudioTrack buffer
+                track.write(rawData, 0, rawData.size, AudioTrack.WRITE_BLOCKING)
+
+                // Pre-buffer 3 chunks (~60ms) before starting playback to avoid buffer underrun crackles
+                val count = preBufferCount.incrementAndGet()
+                if (count >= 3 && !isTrackPlaying.get()) {
+                    try {
+                        track.play()
+                        isTrackPlaying.set(true)
+                    } catch (e: Exception) {
+                        Log.w("AudioStreamManager", "Error starting track playback: ${e.message}")
                     }
-                    if (sampleCount > 0) {
-                        val rms = Math.sqrt(sumSquares / sampleCount)
-                        val normalized = (rms / 32767.0).toFloat().coerceIn(0f, 1f)
-                        _amplitude.value = normalized
-                    }
+                }
+
+                // Compute RMS amplitude for smooth visualizer
+                var sumSquares = 0.0
+                val sampleCount = rawData.size / 2
+                for (i in 0 until rawData.size - 1 step 4) {
+                    val sample = (rawData[i].toInt() and 0xFF) or (rawData[i + 1].toInt() shl 8)
+                    val shortVal = sample.toShort()
+                    sumSquares += shortVal * shortVal
+                }
+                if (sampleCount > 0) {
+                    val rms = Math.sqrt(sumSquares / (sampleCount / 2))
+                    val normalized = (rms / 32767.0).toFloat().coerceIn(0f, 1f)
+                    _amplitude.value = normalized
                 }
             }
 
