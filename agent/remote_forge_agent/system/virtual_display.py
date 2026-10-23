@@ -57,6 +57,18 @@ class VirtualDisplayManager:
 
         # On macOS, spawn real hardware-level virtual secondary display
         if self.is_darwin:
+            if self._proc:
+                try:
+                    self._proc.terminate()
+                    self._proc.wait(timeout=1.0)
+                except Exception:
+                    try:
+                        self._proc.kill()
+                    except Exception:
+                        pass
+                self._proc = None
+            subprocess.run(["pkill", "-f", "virtual_display_helper"], check=False)
+
             bin_path = os.path.abspath(
                 os.path.join(os.path.dirname(__file__), "..", "bin", "virtual_display_helper")
             )

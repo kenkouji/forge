@@ -3,6 +3,7 @@ package com.remoteforge.app.ui.screens
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -542,6 +543,25 @@ fun UniversalControlScreen(
                     ) {
                         Text("Snap Cursor Back to Laptop", color = Color.White, fontWeight = FontWeight.Bold)
                     }
+                } else {
+                    Button(
+                        onClick = {
+                            isRemoteActive = true
+                            cursorNormX = 0.5f
+                            cursorNormY = 0.5f
+                            lastActionNotice = "Mouse Hopped to Phone!"
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.dp, RoyalViolet.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Navigation, contentDescription = null, tint = RoyalViolet, modifier = Modifier.size(16.dp).rotate(-45f))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Activate Mouse on Phone (Test)", color = TextPrimaryDark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(30.dp))
@@ -555,24 +575,35 @@ fun UniversalControlScreen(
                 Box(
                     modifier = Modifier
                         .offset(x = posX.coerceAtLeast(0.dp), y = posY.coerceAtLeast(0.dp))
-                        .size(36.dp)
+                        .size(44.dp)
                 ) {
                     if (isClicking) {
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF4ECCA3).copy(alpha = 0.4f))
-                                .border(1.5.dp, Color(0xFF4ECCA3), CircleShape)
+                                .background(Color(0xFF4ECCA3).copy(alpha = 0.5f))
+                                .border(2.dp, Color(0xFF4ECCA3), CircleShape)
                         )
                     }
+
+                    // High contrast black drop shadow so cursor is always clearly visible
+                    Icon(
+                        imageVector = Icons.Rounded.Navigation,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .offset(x = 1.5.dp, y = 1.5.dp)
+                            .rotate(-45f)
+                    )
 
                     Icon(
                         imageVector = Icons.Rounded.Navigation,
                         contentDescription = "Mouse Pointer",
                         tint = if (isClicking) Color(0xFF4ECCA3) else Color.White,
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(26.dp)
                             .rotate(-45f)
                     )
                 }

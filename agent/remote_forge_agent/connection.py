@@ -28,6 +28,7 @@ class AgentConnection:
         self.heartbeat_interval = heartbeat_interval
         self._running = False
         self._ws: Optional[websockets.WebSocketClientProtocol] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def _get_registration_payload(self) -> Dict[str, Any]:
         os_name = platform.system()
@@ -54,11 +55,9 @@ class AgentConnection:
         return getattr(self._ws, "open", False)
 
     def send_message_sync(self, payload: Dict[str, Any]):
-        if self._ws and self._is_ws_open():
+        if self._ws and self._is_ws_open() and self._loop and self._loop.is_running():
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.run_coroutine_threadsafe(self._ws.send(json.dumps(payload)), loop)
+                asyncio.run_coroutine_threadsafe(self._ws.send(json.dumps(payload)), self._loop)
             except Exception as e:
                 logger.debug(f"Error sending message from agent: {e}")
 
@@ -183,6 +182,7 @@ class AgentConnection:
 
     async def run(self):
         self._running = True
+        self._loop = asyncio.get_running_loop()
         backoff = 2.0
         max_backoff = 30.0
 

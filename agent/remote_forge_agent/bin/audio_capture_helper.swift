@@ -68,7 +68,9 @@ class AudioCaptureHelper: NSObject, SCStreamOutput {
         }
 
         pcmBytes.withUnsafeBytes { rawPtr in
-            outHandle.write(Data(rawPtr))
+            if let addr = rawPtr.baseAddress {
+                Darwin.write(STDOUT_FILENO, addr, rawPtr.count)
+            }
         }
     }
 }
@@ -92,6 +94,9 @@ Task {
         let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
         let config = SCStreamConfiguration()
         config.capturesAudio = true
+        // Set minimumFrameInterval to 60s so ScreenCaptureKit uses near-zero GPU/CPU for video
+        config.minimumFrameInterval = CMTime(value: 60, timescale: 1)
+        config.queueDepth = 3
         config.width = 2
         config.height = 2
         config.sampleRate = sampleRate

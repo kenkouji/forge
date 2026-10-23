@@ -42,6 +42,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.remoteforge.app.audio.AudioStreamManager
 import com.remoteforge.app.data.repository.RemoteForgeRepository
 import com.remoteforge.app.ui.components.*
 import com.remoteforge.app.ui.theme.*
@@ -61,11 +63,14 @@ fun LiveScreenViewerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val view = LocalView.current
     val focusManager = LocalFocusManager.current
     val devices by repository.devices.collectAsState()
     val device = devices.firstOrNull { it.id == deviceId } ?: repository.selectedDevice.collectAsState().value
+    val audioManager = remember { AudioStreamManager.getInstance(context) }
+    val isAudioActive by audioManager.isSinkActive.collectAsState()
 
     // Streaming state
     var isStreaming by remember { mutableStateOf(true) }
@@ -75,6 +80,25 @@ fun LiveScreenViewerScreen(
     var streamResolution by remember { mutableStateOf("800x500") }
     var isDegraded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Auto-stream PC audio with zero latency during Live Mirror
+    LaunchedEffect(deviceId) {
+        try {
+            repository.startAudioSession(
+                deviceId = deviceId,
+                mode = "sink",
+                sampleRate = 48000,
+                channels = 2,
+                bitDepth = 16,
+                codec = "pcm"
+            )
+            val serverUrl = repository.networkConfig.serverUrl
+                .replace("http://", "ws://")
+                .replace("https://", "wss://")
+                .trimEnd('/')
+            audioManager.startPlayback("$serverUrl/ws/audio/$deviceId")
+        } catch (_: Exception) {}
+    }
 
     // Stream Quality configuration (Native 1:1 nominal 1280x800 sharp mapping at 15 FPS)
     var targetWidth by remember { mutableStateOf(1280) }
@@ -347,6 +371,28 @@ fun LiveScreenViewerScreen(
                     }
                 },
                 actions = {
+                    // Live PC Sound stream toggle
+                    IconButton(onClick = {
+                        if (isAudioActive) {
+                            audioManager.stopPlayback()
+                            actionNotice = "PC Sound muted"
+                        } else {
+                            val serverUrl = repository.networkConfig.serverUrl
+                                .replace("http://", "ws://")
+                                .replace("https://", "wss://")
+                                .trimEnd('/')
+                            audioManager.startPlayback("$serverUrl/ws/audio/$deviceId")
+                            actionNotice = "Streaming PC Sound with Zero Latency"
+                        }
+                        triggerHaptic()
+                    }) {
+                        Icon(
+                            imageVector = if (isAudioActive) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
+                            contentDescription = "PC Audio",
+                            tint = if (isAudioActive) Color(0xFF4ECCA3) else TextMutedDark
+                        )
+                    }
+
                     // Control Mode Switch (Direct Touch vs Trackpad Drag)
                     IconButton(onClick = {
                         controlMode = if (controlMode == "touch") "trackpad" else "touch"

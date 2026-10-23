@@ -41,14 +41,15 @@ fun AudioStudioScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val audioManager = remember { AudioStreamManager(context) }
+    val audioManager = remember { AudioStreamManager.getInstance(context) }
+    val isSinkActive by audioManager.isSinkActive.collectAsState()
     val liveAmplitude by audioManager.amplitude.collectAsState()
 
     var selectedMode by remember { mutableStateOf("sink") } // "sink" (PC->Phone) or "source" (Phone->PC Mic)
-    var isStreaming by remember { mutableStateOf(false) }
+    var isStreaming by remember(isSinkActive) { mutableStateOf(isSinkActive) }
     var volume by remember { mutableFloatStateOf(1.0f) }
     var isMuted by remember { mutableStateOf(false) }
-    var latencyMs by remember { mutableFloatStateOf(24.5f) }
+    var latencyMs by remember { mutableFloatStateOf(12.0f) }
     var sampleRate by remember { mutableIntStateOf(48000) }
 
     // Live spectrum animation phase
@@ -71,12 +72,6 @@ fun AudioStudioScreen(
             selectedMode = status.mode
             sampleRate = status.sampleRate
             latencyMs = status.latencyMs
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            audioManager.stopPlayback()
         }
     }
 

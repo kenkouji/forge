@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.remoteforge.app.audio.AudioStreamManager
 import com.remoteforge.app.data.repository.RemoteForgeRepository
 import com.remoteforge.app.ui.components.GlassCard
 import com.remoteforge.app.ui.theme.*
@@ -51,6 +52,8 @@ fun VirtualDisplayScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val audioManager = remember { AudioStreamManager.getInstance(context) }
+    val isAudioActive by audioManager.isSinkActive.collectAsState()
 
     // Automatically rotate and lock phone into landscape mode for the extended monitor
     val activity = context as? Activity
@@ -94,6 +97,23 @@ fun VirtualDisplayScreen(
             isSessionActive = true
             latencyMs = status.latencyMs
             currentFps = status.currentFps
+
+            // Stream PC audio to phone / Bluetooth earbuds with zero latency during Virtual Display
+            try {
+                repository.startAudioSession(
+                    deviceId = deviceId,
+                    mode = "sink",
+                    sampleRate = 48000,
+                    channels = 2,
+                    bitDepth = 16,
+                    codec = "pcm"
+                )
+                val serverUrl = repository.networkConfig.serverUrl
+                    .replace("http://", "ws://")
+                    .replace("https://", "wss://")
+                    .trimEnd('/')
+                audioManager.startPlayback("$serverUrl/ws/audio/$deviceId")
+            } catch (_: Exception) {}
         }
     }
 
@@ -341,28 +361,72 @@ fun VirtualDisplayScreen(
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xCC130D22))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
-                    .clickable { showControls = !showControls }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (showControls) Icons.Rounded.Fullscreen else Icons.Rounded.Tune,
-                        contentDescription = "Tune",
-                        tint = RoyalViolet,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${selectedRes} • ${selectedFps}Hz",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xCC130D22))
+                        .border(
+                            1.dp,
+                            if (isAudioActive) Color(0xFF4ECCA3).copy(alpha = 0.5f) else Color(0x33FFFFFF),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .clickable {
+                            if (isAudioActive) {
+                                audioManager.stopPlayback()
+                            } else {
+                                val serverUrl = repository.networkConfig.serverUrl
+                                    .replace("http://", "ws://")
+                                    .replace("https://", "wss://")
+                                    .trimEnd('/')
+                                audioManager.startPlayback("$serverUrl/ws/audio/$deviceId")
+                            }
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (isAudioActive) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
+                            contentDescription = "Audio",
+                            tint = if (isAudioActive) Color(0xFF4ECCA3) else Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isAudioActive) "Sound ON" else "Muted",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xCC130D22))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
+                        .clickable { showControls = !showControls }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (showControls) Icons.Rounded.Fullscreen else Icons.Rounded.Tune,
+                            contentDescription = "Tune",
+                            tint = RoyalViolet,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "${selectedRes} • ${selectedFps}Hz",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
